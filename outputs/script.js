@@ -586,16 +586,20 @@ function downloadErpCsv(filename, rows) {
 }
 
 function pdfText(value) {
-  return value.toString().replace(/\s+/g, " ").trim();
+  return value
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[’]/g, "'")
+    .replace(/[€]/g, "EUR")
+    .replace(/[°]/g, "o")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function toUtf16Hex(value) {
-  const text = `\uFEFF${pdfText(value)}`;
-  let hex = "";
-  for (let index = 0; index < text.length; index += 1) {
-    hex += text.charCodeAt(index).toString(16).padStart(4, "0");
-  }
-  return `<${hex.toUpperCase()}>`;
+  const text = pdfText(value).replace(/[\\()]/g, "\\$&");
+  return `(${text})`;
 }
 
 function pdfEscapeNumber(value) {
@@ -606,29 +610,27 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
   const pageWidth = 595.28;
   const pageHeight = 841.89;
   const margin = 36;
-  const lineHeight = 13;
   const pages = [];
   let commands = [];
   let y = pageHeight - margin;
+  let pageNumber = 0;
+  const pdfTotal = validLines.reduce((sum, line) => sum + line.product.price * line.qty, 0);
 
   function addPage() {
     if (commands.length) {
+      drawFooter();
       pages.push(commands.join("\n"));
     }
     commands = [];
+    pageNumber += 1;
     y = pageHeight - margin;
+    drawHeader();
   }
 
   function ensureSpace(height) {
-    if (y - height < margin) {
+    if (y - height < 74) {
       addPage();
     }
-  }
-
-  function text(x, size, value, options = {}) {
-    const font = options.bold ? "F2" : "F1";
-    commands.push(`BT /${font} ${size} Tf ${pdfEscapeNumber(x)} ${pdfEscapeNumber(y)} Td ${toUtf16Hex(value)} Tj ET`);
-    y -= options.lineHeight || lineHeight;
   }
 
   function textAt(x, currentY, size, value, options = {}) {
@@ -636,8 +638,9 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
     commands.push(`BT /${font} ${size} Tf ${pdfEscapeNumber(x)} ${pdfEscapeNumber(currentY)} Td ${toUtf16Hex(value)} Tj ET`);
   }
 
-  function hline(currentY) {
-    commands.push(`${margin} ${pdfEscapeNumber(currentY)} m ${pageWidth - margin} ${pdfEscapeNumber(currentY)} l S`);
+  function textLine(x, size, value, options = {}) {
+    textAt(x, y, size, value, options);
+    y -= options.lineHeight || 13;
   }
 
   function setColor(hex) {
@@ -662,86 +665,134 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
     setColor("#1E1E22");
   }
 
-  function circle(x, circleY, radius, color) {
-    setColor(color);
-    commands.push(`${pdfEscapeNumber(x)} ${pdfEscapeNumber(circleY)} ${pdfEscapeNumber(radius)} 0 360 arc f`);
+  function strokeRect(x, rectY, width, height, color = "#DEDFE3") {
+    setStroke(color);
+    commands.push(`${pdfEscapeNumber(x)} ${pdfEscapeNumber(rectY)} ${pdfEscapeNumber(width)} ${pdfEscapeNumber(height)} re S`);
+    setStroke("#1E1E22");
+  }
+
+  function hline(x1, x2, currentY, color = "#DEDFE3") {
+    setStroke(color);
+    commands.push(`${pdfEscapeNumber(x1)} ${pdfEscapeNumber(currentY)} m ${pdfEscapeNumber(x2)} ${pdfEscapeNumber(currentY)} l S`);
+    setStroke("#1E1E22");
+  }
+
+  function drawHeader() {
+    fillRect(margin, pageHeight - 50, 76, 4, "#E30613");
+    textAt(margin, pageHeight - 30, 18, "Schuller Eh'klar", { bold: true });
+    textAt(margin, pageHeight - 45, 7.5, "BROSSERIE ET OUTILLAGE POUR PEINTRES");
+    textAt(margin, pageHeight - 58, 7.5, "4 rue Jean Marie Lhen - 67560 ROSHEIM - Tel. 03 88 04 68 04");
+    textAt(margin, pageHeight - 70, 7.5, "www.schuller.eu - france@schuller.eu");
+
+    textAt(pageWidth - 198, pageHeight - 30, 18, "BON DE COMMANDE", { bold: true });
+    fillRect(pageWidth - 198, pageHeight - 54, 162, 22, "#F5F5F5");
+    strokeRect(pageWidth - 198, pageHeight - 54, 162, 22);
+    textAt(pageWidth - 190, pageHeight - 47, 8.5, `N° ${orderNumber}`, { bold: true });
+    textAt(pageWidth - 190, pageHeight - 66, 8.5, `Date : ${orderDate}`);
+    hline(margin, pageWidth - margin, pageHeight - 82, "#E30613");
+    y = pageHeight - 104;
+  }
+
+  function drawFooter() {
+    hline(margin, pageWidth - margin, 48, "#DEDFE3");
+    textAt(margin, 34, 6.5, "SARL au capital de 24.000 Euros - RCS Saverne 2002 B 113 - SIRET 429542392 00031 - TVA FR36429542392");
+    textAt(margin, 24, 6.5, "Banque CCM Strasbourg FR76 1027 8010 0400 0576 5794 597 - BIC CMCIFR2A");
+    textAt(pageWidth - 58, 24, 7, `${pageNumber}`);
+  }
+
+  function drawInfoBoxes() {
+    const boxY = y - 96;
+    const boxW = (pageWidth - margin * 2 - 14) / 2;
+    fillRect(margin, boxY + 74, boxW, 22, "#1E1E22");
+    fillRect(margin + boxW + 14, boxY + 74, boxW, 22, "#1E1E22");
+    strokeRect(margin, boxY, boxW, 96);
+    strokeRect(margin + boxW + 14, boxY, boxW, 96);
+    setColor("#FFFFFF");
+    textAt(margin + 10, boxY + 82, 9, "Adresse de facturation", { bold: true });
+    textAt(margin + boxW + 24, boxY + 82, 9, "Adresse de livraison", { bold: true });
     setColor("#1E1E22");
+
+    const leftX = margin + 10;
+    const rightX = margin + boxW + 24;
+    textAt(leftX, boxY + 60, 10, selectedClient.name, { bold: true });
+    textAt(leftX, boxY + 45, 8, selectedClient.billingAddress || "-");
+    textAt(leftX, boxY + 33, 8, `${selectedClient.billingZip} ${selectedClient.billingCity}`);
+    textAt(leftX, boxY + 18, 8, `Code client : ${selectedClient.code}`);
+    textAt(leftX, boxY + 7, 8, selectedClient.sector || "");
+
+    textAt(rightX, boxY + 60, 10, selectedClient.name, { bold: true });
+    textAt(rightX, boxY + 45, 8, selectedClient.deliveryAddress || "-");
+    textAt(rightX, boxY + 33, 8, `${selectedClient.deliveryZip} ${selectedClient.deliveryCity}`);
+    textAt(rightX, boxY + 18, 8, selectedClient.phone || "");
+    textAt(rightX, boxY + 7, 8, selectedClient.email || "");
+    y = boxY - 26;
   }
 
-  function row(columns, options = {}) {
-    ensureSpace(options.height || 22);
-    const rowY = y;
-    columns.forEach((column) => {
-      textAt(column.x, rowY, options.size || 8, column.value, { bold: options.bold });
-    });
-    y -= options.height || 22;
-    hline(y + 7);
+  function drawTableHeader() {
+    fillRect(margin, y - 4, pageWidth - margin * 2, 21, "#E30613");
+    setColor("#FFFFFF");
+    textAt(margin + 6, y + 3, 7.5, "Réf.", { bold: true });
+    textAt(88, y + 3, 7.5, "Gencod", { bold: true });
+    textAt(172, y + 3, 7.5, "Désignation", { bold: true });
+    textAt(382, y + 3, 7.5, "UDV", { bold: true });
+    textAt(417, y + 3, 7.5, "Qté", { bold: true });
+    textAt(456, y + 3, 7.5, "Prix U.", { bold: true });
+    textAt(515, y + 3, 7.5, "Total", { bold: true });
+    setColor("#1E1E22");
+    y -= 22;
   }
 
-  fillRect(0, pageHeight - 96, pageWidth, 96, "#1E1E22");
-  fillRect(0, pageHeight - 96, 12, 96, "#E30613");
-  fillRect(pageWidth - 120, pageHeight - 96, 120, 96, "#E30613");
-  setColor("#FFFFFF");
-  textAt(margin, pageHeight - 42, 22, "Commande", { bold: true });
-  textAt(margin, pageHeight - 62, 10, "Schuller Eh'Klar France");
-  textAt(pageWidth - 104, pageHeight - 42, 12, orderNumber, { bold: true });
-  textAt(pageWidth - 104, pageHeight - 60, 10, orderDate);
-  setColor("#1E1E22");
-  y = pageHeight - 122;
-
-  fillRect(margin, y - 88, pageWidth - margin * 2, 92, "#F5F5F5");
-  fillRect(margin, y - 88, 4, 92, "#E30613");
-  text(margin, 13, "Client", { bold: true, lineHeight: 17 });
-  text(margin + 14, 10, `${selectedClient.name} - ${selectedClient.code}`);
-  text(margin + 14, 9, `Facturation : ${selectedClient.billingAddress} - ${selectedClient.billingZip} ${selectedClient.billingCity}`);
-  text(margin + 14, 9, `Livraison : ${selectedClient.deliveryAddress} - ${selectedClient.deliveryZip} ${selectedClient.deliveryCity}`);
-  text(margin + 14, 9, `${selectedClient.sector} - ${selectedClient.phone} - ${selectedClient.email}`, { lineHeight: 18 });
-
-  text(margin, 13, "Produits", { bold: true, lineHeight: 17 });
-  fillRect(margin, y - 1, pageWidth - margin * 2, 18, "#E30613");
-  setColor("#FFFFFF");
-  row(
-    [
-      { x: margin, value: "Réf." },
-      { x: 92, value: "Gencod" },
-      { x: 190, value: "Désignation" },
-      { x: 390, value: "UDV" },
-      { x: 425, value: "Qté" },
-      { x: 465, value: "Prix U." },
-      { x: 520, value: "Total" },
-    ],
-    { bold: true, size: 8, height: 18 }
-  );
-  setColor("#1E1E22");
-  setStroke("#DEDFE3");
-
-  validLines.forEach((line) => {
+  function drawProductRow(line, index) {
+    ensureSpace(24);
+    if (y > pageHeight - 110) {
+      drawTableHeader();
+    }
+    if (index % 2 === 1) {
+      fillRect(margin, y - 8, pageWidth - margin * 2, 20, "#F8F8F9");
+    }
     const lineTotal = line.product.price * line.qty;
-    row(
-      [
-        { x: margin, value: line.product.ref },
-        { x: 92, value: line.product.gencod },
-        { x: 190, value: line.product.name.slice(0, 34) },
-        { x: 390, value: line.product.udv || "-" },
-        { x: 425, value: line.qty },
-        { x: 465, value: formatter.format(line.product.price) },
-        { x: 520, value: formatter.format(lineTotal) },
-      ],
-      { size: 8, height: 18 }
-    );
-  });
+    textAt(margin + 6, y, 7.5, line.product.ref);
+    textAt(88, y, 7.2, line.product.gencod);
+    textAt(172, y, 7.6, line.product.name.slice(0, 42), { bold: true });
+    textAt(386, y, 7.5, line.product.udv || "-");
+    textAt(419, y, 7.5, line.qty);
+    textAt(456, y, 7.5, formatter.format(line.product.price));
+    textAt(515, y, 7.5, formatter.format(lineTotal));
+    y -= 20;
+    hline(margin, pageWidth - margin, y + 7, "#E5E5E8");
+  }
 
-  y -= 8;
-  fillRect(pageWidth - 230, y - 5, 194, 28, "#1E1E22");
-  setColor("#FFFFFF");
-  text(pageWidth - 210, 13, `Total HT : ${formatter.format(getTotal())}`, { bold: true, lineHeight: 22 });
-  setColor("#1E1E22");
+  addPage();
+  drawInfoBoxes();
+  textLine(margin, 12, "Produits commandés", { bold: true, lineHeight: 17 });
+  drawTableHeader();
+  validLines.forEach((line, index) => drawProductRow(line, index));
+
+  y -= 10;
+  ensureSpace(92);
+  const recapX = pageWidth - 210;
+  fillRect(recapX, y - 55, 174, 66, "#F5F5F5");
+  strokeRect(recapX, y - 55, 174, 66);
+  fillRect(recapX, y - 55, 4, 66, "#E30613");
+  textAt(recapX + 14, y - 6, 9, "Récapitulatif", { bold: true });
+  textAt(recapX + 14, y - 25, 8, "Total HT");
+  textAt(recapX + 90, y - 25, 8, formatter.format(pdfTotal), { bold: true });
+  textAt(recapX + 14, y - 42, 8, "Total TTC");
+  textAt(recapX + 90, y - 42, 8, formatter.format(pdfTotal), { bold: true });
+  y -= 76;
 
   if (note) {
-    ensureSpace(50);
-    text(margin, 11, "Note", { bold: true, lineHeight: 15 });
-    text(margin, 9, note, { lineHeight: 15 });
+    ensureSpace(46);
+    fillRect(margin, y - 28, pageWidth - margin * 2 - 190, 38, "#F8F8F9");
+    strokeRect(margin, y - 28, pageWidth - margin * 2 - 190, 38);
+    textAt(margin + 10, y - 4, 8, "Note", { bold: true });
+    textAt(margin + 10, y - 18, 8, note.slice(0, 95));
+    y -= 48;
   }
+
+  textAt(margin, 74, 7, "Tous nos prix sont indiqués en Euros. Prix nets valables uniquement pour cette commande.");
+  textAt(margin, 64, 7, "Document généré automatiquement par l'outil de saisie de commande Schuller Eh'klar France.");
+  setColor("#1E1E22");
 
   addPage();
 

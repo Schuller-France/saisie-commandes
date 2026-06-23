@@ -45,7 +45,12 @@
         </div>
       </header>
 
-      <main class="app-shell">
+      <nav class="app-tabs" aria-label="Navigation application">
+        <button class="tab-button is-active" type="button" id="orderTab">Saisie commande</button>
+        <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
+      </nav>
+
+      <main class="app-shell" id="orderView">
       <section class="panel client-panel" aria-labelledby="clientTitle">
         <div class="panel-heading">
           <div>
@@ -147,6 +152,24 @@
           Le CSV contient uniquement les références. Le PDF contient la commande complète.
         </p>
       </aside>
+      </main>
+
+      <main class="app-shell is-hidden" id="historyView">
+        <section class="panel history-panel" aria-labelledby="historyTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Historique</p>
+              <h2 id="historyTitle">Commandes passées</h2>
+            </div>
+            <span class="status-pill" id="historyCount">0 commande</span>
+          </div>
+          <div class="history-layout">
+            <div class="history-list" id="historyList"></div>
+            <article class="history-detail" id="historyDetail">
+              <span>Sélectionnez une commande pour consulter le détail.</span>
+            </article>
+          </div>
+        </section>
       </main>
     </div>
 

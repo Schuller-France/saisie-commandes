@@ -13,6 +13,7 @@ let selectedClient = null;
 let lines = [];
 let currentUser = null;
 let visibleClients = [];
+let activeHistoryOrderId = null;
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -37,6 +38,13 @@ const loginPassword = document.querySelector("#loginPassword");
 const loginError = document.querySelector("#loginError");
 const logoutButton = document.querySelector("#logoutButton");
 const sessionLabel = document.querySelector("#sessionLabel");
+const orderTab = document.querySelector("#orderTab");
+const historyTab = document.querySelector("#historyTab");
+const orderView = document.querySelector("#orderView");
+const historyView = document.querySelector("#historyView");
+const historyList = document.querySelector("#historyList");
+const historyDetail = document.querySelector("#historyDetail");
+const historyCount = document.querySelector("#historyCount");
 
 function escapeHtml(value) {
   return value
@@ -114,6 +122,7 @@ function getClientsForUser(user) {
 function showLogin() {
   currentUser = null;
   visibleClients = [];
+  activeHistoryOrderId = null;
   sessionStorage.removeItem("orderEntryUser");
   loginView.classList.remove("is-hidden");
   appView.classList.add("is-hidden");
@@ -132,6 +141,8 @@ function showApp(user) {
   loginView.classList.add("is-hidden");
   appView.classList.remove("is-hidden");
   resetOrder();
+  setActiveTab("order");
+  renderOrderHistory();
   requestAnimationFrame(() => clientSearch.focus());
 }
 
@@ -198,6 +209,27 @@ function addLine() {
 function findProduct(ref) {
   const query = normalize(ref.trim());
   return products.find((product) => normalize(product.ref) === query || normalize(product.gencod) === query);
+}
+
+function defaultQuantityForProduct(product) {
+  return Math.max(Number(product?.udv) || 1, 1);
+}
+
+function setLineReference(id, ref) {
+  lines = lines.map((line) => {
+    if (line.id !== id) {
+      return line;
+    }
+
+    const product = findProduct(ref);
+    const referenceChanged = normalize(line.ref) !== normalize(ref);
+    return {
+      ...line,
+      ref,
+      qty: product && referenceChanged ? defaultQuantityForProduct(product) : line.qty,
+    };
+  });
+  renderLines();
 }
 
 function updateLine(id, changes) {
@@ -298,12 +330,12 @@ function renderLines() {
     const qtyInput = row.querySelector(".qty-cell input");
     const removeButton = row.querySelector(".remove-line");
 
-    refInput.addEventListener("change", (event) => updateLine(line.id, { ref: event.target.value.trim() }));
-    refInput.addEventListener("blur", (event) => updateLine(line.id, { ref: event.target.value.trim() }));
+    refInput.addEventListener("change", (event) => setLineReference(line.id, event.target.value.trim()));
+    refInput.addEventListener("blur", (event) => setLineReference(line.id, event.target.value.trim()));
     refInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        updateLine(line.id, { ref: event.target.value.trim() });
+        setLineReference(line.id, event.target.value.trim());
         focusLineQty(line.id);
       }
     });
@@ -348,6 +380,174 @@ function updateSummary() {
   summaryClient.textContent = selectedClient ? selectedClient.name : "Non selectionne";
   summaryLines.textContent = validLines.length.toString();
   summaryTotal.textContent = formatter.format(getTotal());
+}
+
+function getStoredOrders() {
+  try {
+    return JSON.parse(localStorage.getItem("schullerOrders") || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredOrders(orders) {
+  localStorage.setItem("schullerOrders", JSON.stringify(orders));
+}
+
+function buildOrderSnapshot({ orderNumber, orderDate, note, validLines }) {
+  const isoDate = new Date().toISOString();
+  return {
+    id: orderNumber,
+    orderNumber,
+    orderDate,
+    isoDate,
+    dayKey: isoDate.slice(0, 10),
+    user: currentUser ? { id: currentUser.id, name: currentUser.name, sector: currentUser.sector } : null,
+    client: { ...selectedClient },
+    note,
+    total: getTotal(),
+    lines: validLines.map((line) => ({
+      ref: line.product.ref,
+      gencod: line.product.gencod,
+      name: line.product.name,
+      udv: line.product.udv || "",
+      qty: line.qty,
+      price: line.product.price,
+      total: line.product.price * line.qty,
+    })),
+  };
+}
+
+function storeOrder(order) {
+  const orders = getStoredOrders().filter((item) => item.id !== order.id);
+  orders.push(order);
+  saveStoredOrders(orders);
+  activeHistoryOrderId = order.id;
+  renderOrderHistory();
+}
+
+function formatStoredDate(dayKey) {
+  const [year, month, day] = dayKey.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function getVisibleStoredOrders() {
+  const orders = getStoredOrders();
+  if (!currentUser) {
+    return [];
+  }
+
+  return orders
+    .filter((order) => order.user?.id === currentUser.id)
+    .sort((a, b) => b.isoDate.localeCompare(a.isoDate));
+}
+
+function renderOrderHistory() {
+  const orders = getVisibleStoredOrders();
+  historyCount.textContent = `${orders.length} commande${orders.length > 1 ? "s" : ""}`;
+  historyList.innerHTML = "";
+
+  if (!orders.length) {
+    historyList.innerHTML = '<div class="history-day">Aucune commande enregistrée</div>';
+    historyDetail.innerHTML = "<span>Les commandes générées apparaîtront ici.</span>";
+    return;
+  }
+
+  let currentDay = "";
+  orders.forEach((order) => {
+    if (order.dayKey !== currentDay) {
+      currentDay = order.dayKey;
+      const day = document.createElement("div");
+      day.className = "history-day";
+      day.textContent = formatStoredDate(order.dayKey);
+      historyList.appendChild(day);
+    }
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `history-item${order.id === activeHistoryOrderId ? " is-active" : ""}`;
+    button.innerHTML = `
+      <span>
+        <strong>${escapeHtml(order.client.name)}</strong>
+        <small>${escapeHtml(order.orderNumber)} - ${escapeHtml(order.lines.length)} ligne${order.lines.length > 1 ? "s" : ""}</small>
+      </span>
+      <span class="history-item-total">${formatter.format(order.total)}</span>
+    `;
+    button.addEventListener("click", () => {
+      activeHistoryOrderId = order.id;
+      renderOrderHistory();
+      renderOrderDetail(order);
+    });
+    historyList.appendChild(button);
+  });
+
+  const activeOrder = orders.find((order) => order.id === activeHistoryOrderId) || orders[0];
+  activeHistoryOrderId = activeOrder.id;
+  renderOrderDetail(activeOrder);
+}
+
+function renderOrderDetail(order) {
+  historyDetail.innerHTML = `
+    <div class="history-detail-header">
+      <div>
+        <p class="step">${escapeHtml(order.orderDate)}</p>
+        <h3>${escapeHtml(order.orderNumber)}</h3>
+      </div>
+      <strong>${formatter.format(order.total)}</strong>
+    </div>
+    <div class="history-detail-grid">
+      <div class="history-detail-box">
+        <strong>${escapeHtml(order.client.name)}</strong>
+        <span>${escapeHtml(order.client.code)}</span>
+        <span>${escapeHtml(order.client.sector)}</span>
+        <span>${escapeHtml(order.client.phone)} - ${escapeHtml(order.client.email)}</span>
+      </div>
+      <div class="history-detail-box">
+        <strong>Livraison</strong>
+        <span>${escapeHtml(order.client.deliveryAddress)}</span>
+        <span>${escapeHtml(order.client.deliveryZip)} ${escapeHtml(order.client.deliveryCity)}</span>
+      </div>
+    </div>
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>Réf.</th>
+          <th>Désignation</th>
+          <th>Qté</th>
+          <th>Prix U.</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${order.lines
+          .map(
+            (line) => `
+              <tr>
+                <td>${escapeHtml(line.ref)}</td>
+                <td>${escapeHtml(line.name)}</td>
+                <td>${escapeHtml(line.qty)}</td>
+                <td>${formatter.format(line.price)}</td>
+                <td>${formatter.format(line.total)}</td>
+              </tr>
+            `
+          )
+          .join("")}
+      </tbody>
+    </table>
+    ${order.note ? `<div class="history-detail-box"><strong>Note</strong><span>${escapeHtml(order.note)}</span></div>` : ""}
+  `;
+}
+
+function setActiveTab(tabName) {
+  const showHistory = tabName === "history";
+  orderTab.classList.toggle("is-active", !showHistory);
+  historyTab.classList.toggle("is-active", showHistory);
+  orderView.classList.toggle("is-hidden", showHistory);
+  historyView.classList.toggle("is-hidden", !showHistory);
+
+  if (showHistory) {
+    renderOrderHistory();
+  }
 }
 
 function csvValue(value) {
@@ -440,6 +640,34 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
     commands.push(`${margin} ${pdfEscapeNumber(currentY)} m ${pageWidth - margin} ${pdfEscapeNumber(currentY)} l S`);
   }
 
+  function setColor(hex) {
+    const clean = hex.replace("#", "");
+    const r = parseInt(clean.slice(0, 2), 16) / 255;
+    const g = parseInt(clean.slice(2, 4), 16) / 255;
+    const b = parseInt(clean.slice(4, 6), 16) / 255;
+    commands.push(`${pdfEscapeNumber(r)} ${pdfEscapeNumber(g)} ${pdfEscapeNumber(b)} rg`);
+  }
+
+  function setStroke(hex) {
+    const clean = hex.replace("#", "");
+    const r = parseInt(clean.slice(0, 2), 16) / 255;
+    const g = parseInt(clean.slice(2, 4), 16) / 255;
+    const b = parseInt(clean.slice(4, 6), 16) / 255;
+    commands.push(`${pdfEscapeNumber(r)} ${pdfEscapeNumber(g)} ${pdfEscapeNumber(b)} RG`);
+  }
+
+  function fillRect(x, rectY, width, height, color) {
+    setColor(color);
+    commands.push(`${pdfEscapeNumber(x)} ${pdfEscapeNumber(rectY)} ${pdfEscapeNumber(width)} ${pdfEscapeNumber(height)} re f`);
+    setColor("#1E1E22");
+  }
+
+  function circle(x, circleY, radius, color) {
+    setColor(color);
+    commands.push(`${pdfEscapeNumber(x)} ${pdfEscapeNumber(circleY)} ${pdfEscapeNumber(radius)} 0 360 arc f`);
+    setColor("#1E1E22");
+  }
+
   function row(columns, options = {}) {
     ensureSpace(options.height || 22);
     const rowY = y;
@@ -450,23 +678,28 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
     hline(y + 7);
   }
 
-  text(margin, 20, "Commande", { bold: true, lineHeight: 18 });
-  text(margin, 10, "Schuller Eh'Klar France", { lineHeight: 16 });
-  text(pageWidth - 180, 10, orderNumber, { bold: true, lineHeight: 13 });
-  text(pageWidth - 180, 10, orderDate, { lineHeight: 18 });
-  hline(y + 8);
+  fillRect(0, pageHeight - 96, pageWidth, 96, "#1E1E22");
+  fillRect(0, pageHeight - 96, 12, 96, "#E30613");
+  fillRect(pageWidth - 120, pageHeight - 96, 120, 96, "#E30613");
+  setColor("#FFFFFF");
+  textAt(margin, pageHeight - 42, 22, "Commande", { bold: true });
+  textAt(margin, pageHeight - 62, 10, "Schuller Eh'Klar France");
+  textAt(pageWidth - 104, pageHeight - 42, 12, orderNumber, { bold: true });
+  textAt(pageWidth - 104, pageHeight - 60, 10, orderDate);
+  setColor("#1E1E22");
+  y = pageHeight - 122;
 
-  y -= 10;
+  fillRect(margin, y - 88, pageWidth - margin * 2, 92, "#F5F5F5");
+  fillRect(margin, y - 88, 4, 92, "#E30613");
   text(margin, 13, "Client", { bold: true, lineHeight: 17 });
-  text(margin, 10, `${selectedClient.name} - ${selectedClient.code}`);
-  text(margin, 10, `Facturation : ${selectedClient.billingAddress}`);
-  text(margin, 10, `${selectedClient.billingZip} ${selectedClient.billingCity}`);
-  text(margin, 10, `Livraison : ${selectedClient.deliveryAddress}`);
-  text(margin, 10, `${selectedClient.deliveryZip} ${selectedClient.deliveryCity}`);
-  text(margin, 10, selectedClient.sector);
-  text(margin, 10, `${selectedClient.phone} - ${selectedClient.email}`, { lineHeight: 20 });
+  text(margin + 14, 10, `${selectedClient.name} - ${selectedClient.code}`);
+  text(margin + 14, 9, `Facturation : ${selectedClient.billingAddress} - ${selectedClient.billingZip} ${selectedClient.billingCity}`);
+  text(margin + 14, 9, `Livraison : ${selectedClient.deliveryAddress} - ${selectedClient.deliveryZip} ${selectedClient.deliveryCity}`);
+  text(margin + 14, 9, `${selectedClient.sector} - ${selectedClient.phone} - ${selectedClient.email}`, { lineHeight: 18 });
 
   text(margin, 13, "Produits", { bold: true, lineHeight: 17 });
+  fillRect(margin, y - 1, pageWidth - margin * 2, 18, "#E30613");
+  setColor("#FFFFFF");
   row(
     [
       { x: margin, value: "Réf." },
@@ -479,6 +712,8 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
     ],
     { bold: true, size: 8, height: 18 }
   );
+  setColor("#1E1E22");
+  setStroke("#DEDFE3");
 
   validLines.forEach((line) => {
     const lineTotal = line.product.price * line.qty;
@@ -497,7 +732,10 @@ function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
   });
 
   y -= 8;
+  fillRect(pageWidth - 230, y - 5, 194, 28, "#1E1E22");
+  setColor("#FFFFFF");
   text(pageWidth - 210, 13, `Total HT : ${formatter.format(getTotal())}`, { bold: true, lineHeight: 22 });
+  setColor("#1E1E22");
 
   if (note) {
     ensureSpace(50);
@@ -567,8 +805,10 @@ function generateOrderFiles() {
   const note = orderNote.value.trim();
   const safeClientCode = selectedClient.code.replace(/[^a-z0-9_-]/gi, "_");
   const baseName = `${orderNumber}_${safeClientCode}`;
+  const orderSnapshot = buildOrderSnapshot({ orderNumber, orderDate, note, validLines });
   const pdfBlob = createPdfBlob({ orderNumber, orderDate, validLines, note });
 
+  storeOrder(orderSnapshot);
   downloadErpCsv(`${baseName}_ERP_REFERENCES.csv`, buildErpCsvRows(validLines));
   downloadBlob(`${baseName}_COMMANDE_COMPLETE.pdf`, pdfBlob);
 }
@@ -589,6 +829,8 @@ clientSearch.addEventListener("input", (event) => renderClientSuggestions(event.
 document.querySelector("#addLine").addEventListener("click", addLine);
 document.querySelector("#generateOrderFiles").addEventListener("click", generateOrderFiles);
 document.querySelector("#resetOrder").addEventListener("click", resetOrder);
+orderTab.addEventListener("click", () => setActiveTab("order"));
+historyTab.addEventListener("click", () => setActiveTab("history"));
 logoutButton.addEventListener("click", showLogin);
 loginForm.addEventListener("submit", (event) => {
   event.preventDefault();

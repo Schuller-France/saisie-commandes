@@ -549,3 +549,172 @@ textarea:focus {
     border-right: 0;
   }
 }
+
+/* Desktop ERP density: keep the complete order row visible without horizontal scroll. */
+.app-header {
+  padding: 12px clamp(16px, 2vw, 28px);
+}
+
+h1 {
+  font-size: clamp(26px, 2.2vw, 36px);
+}
+
+h2 {
+  font-size: clamp(21px, 1.6vw, 28px);
+}
+
+.app-shell {
+  gap: 14px;
+  width: min(1840px, 100%);
+  padding: 14px clamp(10px, 1.2vw, 22px) 24px;
+}
+
+.panel-heading {
+  padding: 16px 22px;
+}
+
+.table-wrap {
+  overflow-x: visible;
+}
+
+.order-table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.col-ref {
+  width: 13.5%;
+}
+
+.col-gencod {
+  width: 12.5%;
+}
+
+.col-name {
+  width: 33%;
+}
+
+.col-udv {
+  width: 5%;
+}
+
+.col-qty {
+  width: 8.5%;
+}
+
+.col-price,
+.col-total {
+  width: 8.5%;
+}
+
+.col-action {
+  width: 3%;
+}
+
+.order-table th,
+.order-table td {
+  padding: 8px 10px;
+}
+
+.order-table th {
+  font-size: 11px;
+}
+
+.order-table input {
+  min-height: 42px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.gencod-cell {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.name-cell {
+  font-size: 14px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.price-cell,
+.line-total-cell {
+  text-align: right;
+}
+
+.remove-line {
+  width: 32px;
+  height: 32px;
+  font-size: 15px;
+}
+
+.order-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 14px;
+  color: var(--muted);
+  font-size: 13px;
+  border-top: 1px solid var(--line);
+  background: #fbfbfc;
+}
+
+.order-actions p {
+  margin: 0;
+}
+
+.ghost-button.compact {
+  min-height: 36px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.summary-panel {
+  grid-template-columns: minmax(360px, 0.8fr) minmax(420px, 1.2fr) 330px;
+}
+
+.summary-list div {
+  padding: 14px 16px;
+}
+
+.summary-list dd {
+  font-size: 18px;
+}
+
+.note-field {
+  padding: 14px 16px;
+}
+
+.primary-button.full {
+  min-height: 44px;
+  font-size: 14px;
+}
+
+.summary-panel .primary-button.full {
+  margin-top: 14px;
+}
+
+.summary-panel .primary-button.full,
+.summary-panel .helper-text {
+  width: calc(100% - 32px);
+  margin-right: 16px;
+  margin-left: 16px;
+}
+
+@media (max-width: 1180px) {
+  .table-wrap {
+    overflow-x: auto;
+  }
+
+  .order-table {
+    min-width: 1180px;
+  }
+}
+
+@media (max-width: 700px) {
+  .order-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

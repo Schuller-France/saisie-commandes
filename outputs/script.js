@@ -109,12 +109,14 @@ function selectClient(client) {
 }
 
 function addLine() {
-  lines.push({
+  const line = {
     id: crypto.randomUUID(),
     ref: "",
     qty: 1,
-  });
+  };
+  lines.push(line);
   renderLines();
+  return line.id;
 }
 
 function findProduct(ref) {
@@ -136,6 +138,59 @@ function removeLine(id) {
   renderLines();
 }
 
+function focusLineRef(id) {
+  requestAnimationFrame(() => {
+    const row = [...orderLines.querySelectorAll("tr")].find((item) => item.dataset.lineId === id);
+    const input = row?.querySelector(".ref-cell input");
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  });
+}
+
+function focusLineQty(id) {
+  requestAnimationFrame(() => {
+    const row = [...orderLines.querySelectorAll("tr")].find((item) => item.dataset.lineId === id);
+    const input = row?.querySelector(".qty-cell input");
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  });
+}
+
+function getNextLineId(currentId) {
+  const index = lines.findIndex((line) => line.id === currentId);
+  const currentLine = lines[index];
+
+  if (!currentLine || !findProduct(currentLine.ref) || Number(currentLine.qty) <= 0) {
+    return null;
+  }
+
+  const nextLine = lines[index + 1];
+  if (nextLine) {
+    return nextLine.id;
+  }
+
+  const newLine = {
+    id: crypto.randomUUID(),
+    ref: "",
+    qty: 1,
+  };
+  lines.push(newLine);
+  return newLine.id;
+}
+
+function completeQuantity(id, qty) {
+  lines = lines.map((line) => (line.id === id ? { ...line, qty } : line));
+  const nextLineId = getNextLineId(id);
+  renderLines();
+  if (nextLineId) {
+    focusLineRef(nextLineId);
+  }
+}
+
 function renderLines() {
   orderLines.innerHTML = "";
 
@@ -144,6 +199,7 @@ function renderLines() {
     const quantity = Math.max(Number(line.qty) || 0, 0);
     const lineTotal = product ? product.price * quantity : 0;
     const row = document.createElement("tr");
+    row.dataset.lineId = line.id;
 
     row.innerHTML = `
       <td class="ref-cell">
@@ -168,7 +224,27 @@ function renderLines() {
 
     refInput.addEventListener("change", (event) => updateLine(line.id, { ref: event.target.value.trim() }));
     refInput.addEventListener("blur", (event) => updateLine(line.id, { ref: event.target.value.trim() }));
-    qtyInput.addEventListener("change", (event) => updateLine(line.id, { qty: Number(event.target.value) || 1 }));
+    refInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        updateLine(line.id, { ref: event.target.value.trim() });
+        focusLineQty(line.id);
+      }
+    });
+    qtyInput.addEventListener("change", (event) => {
+      completeQuantity(line.id, Number(event.target.value) || 1);
+    });
+    qtyInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        const qty = Number(event.target.value) || 1;
+        completeQuantity(line.id, qty);
+      }
+    });
+    qtyInput.addEventListener("blur", (event) => {
+      const qty = Number(event.target.value) || 1;
+      completeQuantity(line.id, qty);
+    });
     removeButton.addEventListener("click", () => removeLine(line.id));
 
     orderLines.appendChild(row);

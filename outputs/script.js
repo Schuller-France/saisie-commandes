@@ -1,8 +1,18 @@
-const clients = window.APP_DATA?.clients || [];
+const allClients = window.APP_DATA?.clients || [];
 const products = window.APP_DATA?.products || [];
+const users = [
+  {
+    id: "flo",
+    password: "flo",
+    name: "Flo",
+    sector: "Secteur 9",
+  },
+];
 
 let selectedClient = null;
 let lines = [];
+let currentUser = null;
+let visibleClients = [];
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -19,6 +29,14 @@ const summaryClient = document.querySelector("#summaryClient");
 const summaryLines = document.querySelector("#summaryLines");
 const summaryTotal = document.querySelector("#summaryTotal");
 const orderNote = document.querySelector("#orderNote");
+const loginView = document.querySelector("#loginView");
+const appView = document.querySelector("#appView");
+const loginForm = document.querySelector("#loginForm");
+const loginId = document.querySelector("#loginId");
+const loginPassword = document.querySelector("#loginPassword");
+const loginError = document.querySelector("#loginError");
+const logoutButton = document.querySelector("#logoutButton");
+const sessionLabel = document.querySelector("#sessionLabel");
 
 function escapeHtml(value) {
   return value
@@ -54,7 +72,7 @@ function renderClientSuggestions(query) {
     return;
   }
 
-  const matches = clients
+  const matches = visibleClients
     .filter((client) => {
       const searchable = [
         client.code,
@@ -87,6 +105,64 @@ function renderClientSuggestions(query) {
   });
 
   clientSuggestions.classList.add("is-open");
+}
+
+function getClientsForUser(user) {
+  return allClients.filter((client) => normalize(client.sector) === normalize(user.sector));
+}
+
+function showLogin() {
+  currentUser = null;
+  visibleClients = [];
+  sessionStorage.removeItem("orderEntryUser");
+  loginView.classList.remove("is-hidden");
+  appView.classList.add("is-hidden");
+  loginId.value = "";
+  loginPassword.value = "";
+  loginError.textContent = "";
+  resetOrder();
+  requestAnimationFrame(() => loginId.focus());
+}
+
+function showApp(user) {
+  currentUser = user;
+  visibleClients = getClientsForUser(user);
+  sessionStorage.setItem("orderEntryUser", user.id);
+  sessionLabel.textContent = `${user.name} - ${user.sector}`;
+  loginView.classList.add("is-hidden");
+  appView.classList.remove("is-hidden");
+  resetOrder();
+  requestAnimationFrame(() => clientSearch.focus());
+}
+
+function authenticate(id, password) {
+  return users.find((user) => normalize(user.id) === normalize(id) && user.password === password);
+}
+
+function submitLogin() {
+  const user = authenticate(loginId.value.trim(), loginPassword.value);
+
+  if (!user) {
+    loginError.textContent = "Identifiant ou mot de passe incorrect.";
+    loginPassword.select();
+    return;
+  }
+
+  showApp(user);
+}
+
+function restoreSession() {
+  const savedUserId = sessionStorage.getItem("orderEntryUser");
+  const savedUser = users.find((user) => user.id === savedUserId);
+
+  if (savedUser) {
+    showApp(savedUser);
+    return;
+  }
+
+  loginView.classList.remove("is-hidden");
+  appView.classList.add("is-hidden");
+  requestAnimationFrame(() => loginId.focus());
 }
 
 function selectClient(client) {
@@ -513,6 +589,23 @@ clientSearch.addEventListener("input", (event) => renderClientSuggestions(event.
 document.querySelector("#addLine").addEventListener("click", addLine);
 document.querySelector("#generateOrderFiles").addEventListener("click", generateOrderFiles);
 document.querySelector("#resetOrder").addEventListener("click", resetOrder);
+logoutButton.addEventListener("click", showLogin);
+loginForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  submitLogin();
+});
+loginPassword.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    submitLogin();
+  }
+});
+loginId.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    loginPassword.focus();
+  }
+});
 
 document.addEventListener("click", (event) => {
   if (!event.target.closest(".search-block")) {
@@ -520,4 +613,4 @@ document.addEventListener("click", (event) => {
   }
 });
 
-addLine();
+restoreSession();

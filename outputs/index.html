@@ -11,15 +11,41 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <header class="app-header">
-      <div>
+    <section class="login-view" id="loginView" aria-labelledby="loginTitle">
+      <img class="login-logo" src="assets/schuller-logo.png" alt="Schuller Eh'Klar" />
+      <form class="login-card" id="loginForm">
         <p class="eyebrow">Schuller Eh'Klar France</p>
-        <h1>Saisie de commande</h1>
-      </div>
-      <button class="ghost-button" type="button" id="resetOrder">Nouvelle commande</button>
-    </header>
+        <h1 id="loginTitle">Connexion commercial</h1>
+        <p class="login-intro">Accédez à votre secteur client et préparez vos commandes terrain.</p>
 
-    <main class="app-shell">
+        <label for="loginId">
+          Identifiant
+          <input id="loginId" name="loginId" type="text" autocomplete="username" required />
+        </label>
+
+        <label for="loginPassword">
+          Mot de passe
+          <input id="loginPassword" name="loginPassword" type="password" autocomplete="current-password" required />
+        </label>
+
+        <p class="login-error" id="loginError" role="alert"></p>
+        <button class="primary-button full" type="submit">Se connecter</button>
+      </form>
+    </section>
+
+    <div class="app-view is-hidden" id="appView">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow" id="sessionLabel">Schuller Eh'Klar France</p>
+          <h1>Saisie de commande</h1>
+        </div>
+        <div class="header-actions">
+          <button class="ghost-button" type="button" id="resetOrder">Nouvelle commande</button>
+          <button class="ghost-button" type="button" id="logoutButton">Déconnexion</button>
+        </div>
+      </header>
+
+      <main class="app-shell">
       <section class="panel client-panel" aria-labelledby="clientTitle">
         <div class="panel-heading">
           <div>
@@ -121,7 +147,8 @@
           Le CSV contient uniquement les références. Le PDF contient la commande complète.
         </p>
       </aside>
-    </main>
+      </main>
+    </div>
 
     <datalist id="productRefs"></datalist>
 

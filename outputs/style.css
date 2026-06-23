@@ -39,6 +39,58 @@ button {
   cursor: pointer;
 }
 
+.is-hidden {
+  display: none !important;
+}
+
+.login-view {
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 32px;
+  background:
+    radial-gradient(circle at 85% 22%, rgba(227, 6, 19, 0.08), transparent 280px),
+    linear-gradient(135deg, #ffffff 0%, #f3f3f5 100%);
+}
+
+.login-logo {
+  position: absolute;
+  top: 28px;
+  right: 34px;
+  width: min(260px, 28vw);
+  height: auto;
+}
+
+.login-card {
+  display: grid;
+  gap: 18px;
+  width: min(460px, 100%);
+  padding: 34px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 60px rgba(30, 30, 34, 0.12);
+}
+
+.login-card h1 {
+  font-size: 32px;
+}
+
+.login-intro {
+  margin: -8px 0 4px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.login-error {
+  min-height: 18px;
+  margin: -4px 0;
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .app-header {
   position: sticky;
   top: 0;
@@ -52,6 +104,12 @@ button {
   border-bottom: 1px solid var(--line);
   box-shadow: 0 8px 30px rgba(30, 30, 34, 0.06);
   backdrop-filter: blur(16px);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .eyebrow,
@@ -525,8 +583,28 @@ textarea:focus {
 }
 
 @media (max-width: 700px) {
+  .login-view {
+    align-items: start;
+    padding: 96px 18px 24px;
+  }
+
+  .login-logo {
+    top: 18px;
+    right: 18px;
+    width: 170px;
+  }
+
+  .login-card {
+    padding: 24px;
+  }
+
   .app-header,
   .panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .header-actions {
     align-items: stretch;
     flex-direction: column;
   }

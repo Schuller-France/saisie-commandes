@@ -198,7 +198,24 @@ function updateSummary() {
   summaryTotal.textContent = formatter.format(getTotal());
 }
 
-function generateOrderDocument() {
+function csvValue(value) {
+  return `"${value.toString().replaceAll('"', '""')}"`;
+}
+
+function downloadCsv(filename, rows) {
+  const csv = rows.map((row) => row.map(csvValue).join(";")).join("\r\n");
+  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function generateOrderCsv() {
   const validLines = getValidLines();
 
   if (!selectedClient) {
@@ -215,91 +232,62 @@ function generateOrderDocument() {
   const orderDate = new Date().toLocaleDateString("fr-FR");
   const orderNumber = `CMD-${Date.now().toString().slice(-6)}`;
   const note = orderNote.value.trim();
-  const rows = validLines
-    .map(
-      (line) => `
-        <tr>
-          <td>${escapeHtml(line.product.ref)}</td>
-          <td>${escapeHtml(line.product.gencod)}</td>
-          <td>${escapeHtml(line.product.name)}</td>
-          <td>${escapeHtml(line.product.udv || "-")}</td>
-          <td>${escapeHtml(line.qty)}</td>
-          <td>${formatter.format(line.product.price)}</td>
-          <td>${formatter.format(line.product.price * line.qty)}</td>
-        </tr>
-      `
-    )
-    .join("");
+  const rows = [
+    [
+      "Numero commande",
+      "Date",
+      "Code client",
+      "Nom client",
+      "Email",
+      "Telephone",
+      "Adresse facturation",
+      "CP facturation",
+      "Ville facturation",
+      "Adresse livraison",
+      "CP livraison",
+      "Ville livraison",
+      "Secteur",
+      "Reference",
+      "Gencod",
+      "Designation",
+      "UDV",
+      "Quantite",
+      "Prix unitaire HT",
+      "Total ligne HT",
+      "Total commande HT",
+      "Note",
+    ],
+  ];
 
-  const pdfWindow = window.open("", "_blank");
-  pdfWindow.document.write(`
-    <!DOCTYPE html>
-    <html lang="fr">
-      <head>
-        <meta charset="UTF-8" />
-        <title>${orderNumber}</title>
-        <style>
-          body { margin: 0; padding: 32px; color: #1e1e22; font-family: Arial, Helvetica, sans-serif; }
-          header { display: flex; justify-content: space-between; gap: 24px; border-bottom: 4px solid #e30613; padding-bottom: 18px; }
-          h1 { margin: 0; font-size: 30px; }
-          h2 { margin: 28px 0 10px; font-size: 18px; }
-          p { margin: 4px 0; }
-          table { width: 100%; margin-top: 18px; border-collapse: collapse; }
-          th, td { padding: 10px; border-bottom: 1px solid #dedfe3; text-align: left; }
-          th { background: #f5f5f5; font-size: 12px; text-transform: uppercase; }
-          .meta { text-align: right; }
-          .total { margin-top: 22px; text-align: right; font-size: 24px; font-weight: 800; }
-          .note { margin-top: 24px; padding: 14px; background: #f5f5f5; }
-          @media print { body { padding: 18mm; } button { display: none; } }
-        </style>
-      </head>
-      <body>
-        <header>
-          <div>
-            <h1>Commande</h1>
-            <p><strong>Schuller Eh'Klar France</strong></p>
-          </div>
-          <div class="meta">
-            <p><strong>${orderNumber}</strong></p>
-            <p>${orderDate}</p>
-          </div>
-        </header>
+  validLines.forEach((line) => {
+    const lineTotal = line.product.price * line.qty;
+    rows.push([
+      orderNumber,
+      orderDate,
+      selectedClient.code,
+      selectedClient.name,
+      selectedClient.email,
+      selectedClient.phone,
+      selectedClient.billingAddress,
+      selectedClient.billingZip,
+      selectedClient.billingCity,
+      selectedClient.deliveryAddress,
+      selectedClient.deliveryZip,
+      selectedClient.deliveryCity,
+      selectedClient.sector,
+      line.product.ref,
+      line.product.gencod,
+      line.product.name,
+      line.product.udv || "",
+      line.qty,
+      line.product.price.toFixed(2).replace(".", ","),
+      lineTotal.toFixed(2).replace(".", ","),
+      getTotal().toFixed(2).replace(".", ","),
+      note,
+    ]);
+  });
 
-        <h2>Client</h2>
-        <p><strong>${escapeHtml(selectedClient.name)}</strong> - ${escapeHtml(selectedClient.code)}</p>
-        <p>Facturation : ${escapeHtml(selectedClient.billingAddress)}</p>
-        <p>${escapeHtml(selectedClient.billingZip)} ${escapeHtml(selectedClient.billingCity)}</p>
-        <p>Livraison : ${escapeHtml(selectedClient.deliveryAddress)}</p>
-        <p>${escapeHtml(selectedClient.deliveryZip)} ${escapeHtml(selectedClient.deliveryCity)}</p>
-        <p>${escapeHtml(selectedClient.sector)}</p>
-        <p>${escapeHtml(selectedClient.phone)} - ${escapeHtml(selectedClient.email)}</p>
-
-        <h2>Produits</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Reference</th>
-              <th>Gencod</th>
-              <th>Designation</th>
-              <th>UDV</th>
-              <th>Qte</th>
-              <th>Prix U.</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-
-        ${note ? `<div class="note"><strong>Note :</strong><p>${escapeHtml(note)}</p></div>` : ""}
-        <p class="total">Total HT : ${formatter.format(getTotal())}</p>
-
-        <script>
-          window.addEventListener("load", () => window.print());
-        </script>
-      </body>
-    </html>
-  `);
-  pdfWindow.document.close();
+  downloadCsv(`${orderNumber}_${selectedClient.code}.csv`, rows);
 }
 
 function resetOrder() {
@@ -316,7 +304,7 @@ function resetOrder() {
 
 clientSearch.addEventListener("input", (event) => renderClientSuggestions(event.target.value));
 document.querySelector("#addLine").addEventListener("click", addLine);
-document.querySelector("#generatePdf").addEventListener("click", generateOrderDocument);
+document.querySelector("#generateCsv").addEventListener("click", generateOrderCsv);
 document.querySelector("#resetOrder").addEventListener("click", resetOrder);
 
 document.addEventListener("click", (event) => {

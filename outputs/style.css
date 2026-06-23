@@ -247,7 +247,7 @@ textarea:focus {
 
 .order-table {
   width: 100%;
-  min-width: 900px;
+  min-width: 1120px;
   border-collapse: collapse;
 }
 
@@ -267,11 +267,19 @@ textarea:focus {
 }
 
 .order-table input {
-  min-height: 42px;
+  min-height: 54px;
+  font-size: 18px;
+  font-weight: 800;
 }
 
 .ref-cell {
-  width: 150px;
+  width: 250px;
+}
+
+.ref-cell input,
+.qty-cell input {
+  border-width: 2px;
+  background: #fffafa;
 }
 
 .gencod-cell {
@@ -293,7 +301,11 @@ textarea:focus {
 }
 
 .qty-cell {
-  width: 92px;
+  width: 150px;
+}
+
+.qty-cell input {
+  text-align: center;
 }
 
 .price-cell,

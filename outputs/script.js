@@ -278,9 +278,7 @@ function csvValue(value) {
   return `"${value.toString().replaceAll('"', '""')}"`;
 }
 
-function downloadCsv(filename, rows) {
-  const csv = rows.map((row) => row.map(csvValue).join(";")).join("\r\n");
-  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+function downloadBlob(filename, blob) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -291,7 +289,190 @@ function downloadCsv(filename, rows) {
   URL.revokeObjectURL(url);
 }
 
-function generateOrderCsv() {
+function downloadCsv(filename, rows) {
+  const csv = rows.map((row) => row.map(csvValue).join(";")).join("\r\n");
+  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+  downloadBlob(filename, blob);
+}
+
+function buildErpCsvRows(validLines) {
+  const rows = ["Référence (SKU)"];
+  validLines.forEach((line) => {
+    rows.push(line.product.ref);
+  });
+  return rows;
+}
+
+function downloadErpCsv(filename, rows) {
+  const csv = rows.join("\r\n");
+  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+  downloadBlob(filename, blob);
+}
+
+function pdfText(value) {
+  return value.toString().replace(/\s+/g, " ").trim();
+}
+
+function toUtf16Hex(value) {
+  const text = `\uFEFF${pdfText(value)}`;
+  let hex = "";
+  for (let index = 0; index < text.length; index += 1) {
+    hex += text.charCodeAt(index).toString(16).padStart(4, "0");
+  }
+  return `<${hex.toUpperCase()}>`;
+}
+
+function pdfEscapeNumber(value) {
+  return Number(value).toFixed(2).replace(/\.00$/, "");
+}
+
+function createPdfBlob({ orderNumber, orderDate, validLines, note }) {
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const margin = 36;
+  const lineHeight = 13;
+  const pages = [];
+  let commands = [];
+  let y = pageHeight - margin;
+
+  function addPage() {
+    if (commands.length) {
+      pages.push(commands.join("\n"));
+    }
+    commands = [];
+    y = pageHeight - margin;
+  }
+
+  function ensureSpace(height) {
+    if (y - height < margin) {
+      addPage();
+    }
+  }
+
+  function text(x, size, value, options = {}) {
+    const font = options.bold ? "F2" : "F1";
+    commands.push(`BT /${font} ${size} Tf ${pdfEscapeNumber(x)} ${pdfEscapeNumber(y)} Td ${toUtf16Hex(value)} Tj ET`);
+    y -= options.lineHeight || lineHeight;
+  }
+
+  function textAt(x, currentY, size, value, options = {}) {
+    const font = options.bold ? "F2" : "F1";
+    commands.push(`BT /${font} ${size} Tf ${pdfEscapeNumber(x)} ${pdfEscapeNumber(currentY)} Td ${toUtf16Hex(value)} Tj ET`);
+  }
+
+  function hline(currentY) {
+    commands.push(`${margin} ${pdfEscapeNumber(currentY)} m ${pageWidth - margin} ${pdfEscapeNumber(currentY)} l S`);
+  }
+
+  function row(columns, options = {}) {
+    ensureSpace(options.height || 22);
+    const rowY = y;
+    columns.forEach((column) => {
+      textAt(column.x, rowY, options.size || 8, column.value, { bold: options.bold });
+    });
+    y -= options.height || 22;
+    hline(y + 7);
+  }
+
+  text(margin, 20, "Commande", { bold: true, lineHeight: 18 });
+  text(margin, 10, "Schuller Eh'Klar France", { lineHeight: 16 });
+  text(pageWidth - 180, 10, orderNumber, { bold: true, lineHeight: 13 });
+  text(pageWidth - 180, 10, orderDate, { lineHeight: 18 });
+  hline(y + 8);
+
+  y -= 10;
+  text(margin, 13, "Client", { bold: true, lineHeight: 17 });
+  text(margin, 10, `${selectedClient.name} - ${selectedClient.code}`);
+  text(margin, 10, `Facturation : ${selectedClient.billingAddress}`);
+  text(margin, 10, `${selectedClient.billingZip} ${selectedClient.billingCity}`);
+  text(margin, 10, `Livraison : ${selectedClient.deliveryAddress}`);
+  text(margin, 10, `${selectedClient.deliveryZip} ${selectedClient.deliveryCity}`);
+  text(margin, 10, selectedClient.sector);
+  text(margin, 10, `${selectedClient.phone} - ${selectedClient.email}`, { lineHeight: 20 });
+
+  text(margin, 13, "Produits", { bold: true, lineHeight: 17 });
+  row(
+    [
+      { x: margin, value: "Réf." },
+      { x: 92, value: "Gencod" },
+      { x: 190, value: "Désignation" },
+      { x: 390, value: "UDV" },
+      { x: 425, value: "Qté" },
+      { x: 465, value: "Prix U." },
+      { x: 520, value: "Total" },
+    ],
+    { bold: true, size: 8, height: 18 }
+  );
+
+  validLines.forEach((line) => {
+    const lineTotal = line.product.price * line.qty;
+    row(
+      [
+        { x: margin, value: line.product.ref },
+        { x: 92, value: line.product.gencod },
+        { x: 190, value: line.product.name.slice(0, 34) },
+        { x: 390, value: line.product.udv || "-" },
+        { x: 425, value: line.qty },
+        { x: 465, value: formatter.format(line.product.price) },
+        { x: 520, value: formatter.format(lineTotal) },
+      ],
+      { size: 8, height: 18 }
+    );
+  });
+
+  y -= 8;
+  text(pageWidth - 210, 13, `Total HT : ${formatter.format(getTotal())}`, { bold: true, lineHeight: 22 });
+
+  if (note) {
+    ensureSpace(50);
+    text(margin, 11, "Note", { bold: true, lineHeight: 15 });
+    text(margin, 9, note, { lineHeight: 15 });
+  }
+
+  addPage();
+
+  const objects = [];
+  const addObject = (content) => {
+    objects.push(content);
+    return objects.length;
+  };
+
+  const fontRegular = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  const fontBold = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+  const pageRefs = [];
+
+  pages.forEach((pageCommands) => {
+    const stream = pageCommands;
+    const contentRef = addObject(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+    const pageRef = addObject(
+      `<< /Type /Page /Parent 0 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >> >> /Contents ${contentRef} 0 R >>`
+    );
+    pageRefs.push(pageRef);
+  });
+
+  const pagesRef = addObject(`<< /Type /Pages /Kids [${pageRefs.map((ref) => `${ref} 0 R`).join(" ")}] /Count ${pageRefs.length} >>`);
+  pageRefs.forEach((pageRef) => {
+    objects[pageRef - 1] = objects[pageRef - 1].replace("/Parent 0 0 R", `/Parent ${pagesRef} 0 R`);
+  });
+  const catalogRef = addObject(`<< /Type /Catalog /Pages ${pagesRef} 0 R >>`);
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${offset.toString().padStart(10, "0")} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogRef} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return new Blob([pdf], { type: "application/pdf" });
+}
+
+function generateOrderFiles() {
   const validLines = getValidLines();
 
   if (!selectedClient) {
@@ -308,62 +489,12 @@ function generateOrderCsv() {
   const orderDate = new Date().toLocaleDateString("fr-FR");
   const orderNumber = `CMD-${Date.now().toString().slice(-6)}`;
   const note = orderNote.value.trim();
-  const rows = [
-    [
-      "Numero commande",
-      "Date",
-      "Code client",
-      "Nom client",
-      "Email",
-      "Telephone",
-      "Adresse facturation",
-      "CP facturation",
-      "Ville facturation",
-      "Adresse livraison",
-      "CP livraison",
-      "Ville livraison",
-      "Secteur",
-      "Reference",
-      "Gencod",
-      "Designation",
-      "UDV",
-      "Quantite",
-      "Prix unitaire HT",
-      "Total ligne HT",
-      "Total commande HT",
-      "Note",
-    ],
-  ];
+  const safeClientCode = selectedClient.code.replace(/[^a-z0-9_-]/gi, "_");
+  const baseName = `${orderNumber}_${safeClientCode}`;
+  const pdfBlob = createPdfBlob({ orderNumber, orderDate, validLines, note });
 
-  validLines.forEach((line) => {
-    const lineTotal = line.product.price * line.qty;
-    rows.push([
-      orderNumber,
-      orderDate,
-      selectedClient.code,
-      selectedClient.name,
-      selectedClient.email,
-      selectedClient.phone,
-      selectedClient.billingAddress,
-      selectedClient.billingZip,
-      selectedClient.billingCity,
-      selectedClient.deliveryAddress,
-      selectedClient.deliveryZip,
-      selectedClient.deliveryCity,
-      selectedClient.sector,
-      line.product.ref,
-      line.product.gencod,
-      line.product.name,
-      line.product.udv || "",
-      line.qty,
-      line.product.price.toFixed(2).replace(".", ","),
-      lineTotal.toFixed(2).replace(".", ","),
-      getTotal().toFixed(2).replace(".", ","),
-      note,
-    ]);
-  });
-
-  downloadCsv(`${orderNumber}_${selectedClient.code}.csv`, rows);
+  downloadErpCsv(`${baseName}_ERP_REFERENCES.csv`, buildErpCsvRows(validLines));
+  downloadBlob(`${baseName}_COMMANDE_COMPLETE.pdf`, pdfBlob);
 }
 
 function resetOrder() {
@@ -380,7 +511,7 @@ function resetOrder() {
 
 clientSearch.addEventListener("input", (event) => renderClientSuggestions(event.target.value));
 document.querySelector("#addLine").addEventListener("click", addLine);
-document.querySelector("#generateCsv").addEventListener("click", generateOrderCsv);
+document.querySelector("#generateOrderFiles").addEventListener("click", generateOrderFiles);
 document.querySelector("#resetOrder").addEventListener("click", resetOrder);
 
 document.addEventListener("click", (event) => {

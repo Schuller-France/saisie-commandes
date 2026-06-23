@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Interface simple de saisie de commande pour commerciaux terrain."
+    />
+    <title>Saisie de commande</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Schuller Eh'Klar France</p>
+        <h1>Saisie de commande</h1>
+      </div>
+      <button class="ghost-button" type="button" id="resetOrder">Nouvelle commande</button>
+    </header>
+
+    <main class="app-shell">
+      <section class="panel client-panel" aria-labelledby="clientTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="step">Etape 1</p>
+            <h2 id="clientTitle">Choisir le client</h2>
+          </div>
+          <span class="status-pill" id="clientStatus">Client non selectionne</span>
+        </div>
+
+        <div class="search-block">
+          <label for="clientSearch">Rechercher par nom, ville ou code client</label>
+          <input
+            id="clientSearch"
+            type="search"
+            autocomplete="off"
+            placeholder="Ex. Peinture Martin, Lyon, C001..."
+          />
+          <div class="suggestions" id="clientSuggestions" role="listbox"></div>
+        </div>
+
+        <article class="selected-client" id="selectedClient" aria-live="polite">
+          <span>Aucun client choisi pour le moment.</span>
+        </article>
+      </section>
+
+      <section class="panel order-panel" aria-labelledby="orderTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="step">Etape 2</p>
+            <h2 id="orderTitle">Ajouter les produits</h2>
+          </div>
+          <button class="primary-button compact" type="button" id="addLine">Ajouter une ligne</button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="order-table">
+            <thead>
+              <tr>
+                <th>Reference</th>
+                <th>Gencod</th>
+                <th>Designation</th>
+                <th>UDV</th>
+                <th>Qte</th>
+                <th>Prix U.</th>
+                <th>Total</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="orderLines"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <aside class="panel summary-panel" aria-labelledby="summaryTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="step">Etape 3</p>
+            <h2 id="summaryTitle">Valider</h2>
+          </div>
+        </div>
+
+        <dl class="summary-list">
+          <div>
+            <dt>Client</dt>
+            <dd id="summaryClient">Non selectionne</dd>
+          </div>
+          <div>
+            <dt>Lignes</dt>
+            <dd id="summaryLines">0</dd>
+          </div>
+          <div>
+            <dt>Total HT</dt>
+            <dd id="summaryTotal">0,00 €</dd>
+          </div>
+        </dl>
+
+        <label class="note-field" for="orderNote">
+          Note commande
+          <textarea id="orderNote" rows="4" placeholder="Instruction livraison, commentaire interne..."></textarea>
+        </label>
+
+        <button class="primary-button full" type="button" id="generatePdf">
+          Generer la commande PDF
+        </button>
+        <p class="helper-text">
+          Le bouton ouvre une page de commande prete a imprimer ou enregistrer en PDF.
+        </p>
+      </aside>
+    </main>
+
+    <datalist id="productRefs"></datalist>
+
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

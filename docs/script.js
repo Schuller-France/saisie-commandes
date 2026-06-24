@@ -38,8 +38,10 @@ const loginPassword = document.querySelector("#loginPassword");
 const loginError = document.querySelector("#loginError");
 const logoutButton = document.querySelector("#logoutButton");
 const sessionLabel = document.querySelector("#sessionLabel");
+const homeTab = document.querySelector("#homeTab");
 const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
+const homeView = document.querySelector("#homeView");
 const orderView = document.querySelector("#orderView");
 const historyView = document.querySelector("#historyView");
 const historyList = document.querySelector("#historyList");
@@ -141,9 +143,8 @@ function showApp(user) {
   loginView.classList.add("is-hidden");
   appView.classList.remove("is-hidden");
   resetOrder();
-  setActiveTab("order");
+  setActiveTab("home");
   renderOrderHistory();
-  requestAnimationFrame(() => clientSearch.focus());
 }
 
 function authenticate(id, password) {
@@ -539,11 +540,19 @@ function renderOrderDetail(order) {
 }
 
 function setActiveTab(tabName) {
+  const showHome = tabName === "home";
+  const showOrder = tabName === "order";
   const showHistory = tabName === "history";
-  orderTab.classList.toggle("is-active", !showHistory);
+  homeTab.classList.toggle("is-active", showHome);
+  orderTab.classList.toggle("is-active", showOrder);
   historyTab.classList.toggle("is-active", showHistory);
-  orderView.classList.toggle("is-hidden", showHistory);
+  homeView.classList.toggle("is-hidden", !showHome);
+  orderView.classList.toggle("is-hidden", !showOrder);
   historyView.classList.toggle("is-hidden", !showHistory);
+
+  if (showOrder) {
+    requestAnimationFrame(() => clientSearch.focus());
+  }
 
   if (showHistory) {
     renderOrderHistory();
@@ -879,7 +888,11 @@ function resetOrder() {
 clientSearch.addEventListener("input", (event) => renderClientSuggestions(event.target.value));
 document.querySelector("#addLine").addEventListener("click", addLine);
 document.querySelector("#generateOrderFiles").addEventListener("click", generateOrderFiles);
-document.querySelector("#resetOrder").addEventListener("click", resetOrder);
+document.querySelector("#resetOrder").addEventListener("click", () => {
+  resetOrder();
+  setActiveTab("order");
+});
+homeTab.addEventListener("click", () => setActiveTab("home"));
 orderTab.addEventListener("click", () => setActiveTab("order"));
 historyTab.addEventListener("click", () => setActiveTab("history"));
 logoutButton.addEventListener("click", showLogin);

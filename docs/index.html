@@ -46,11 +46,74 @@
       </header>
 
       <nav class="app-tabs" aria-label="Navigation application">
-        <button class="tab-button is-active" type="button" id="orderTab">Saisie commande</button>
+        <button class="tab-button is-active" type="button" id="homeTab">Accueil</button>
+        <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
         <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
       </nav>
 
-      <main class="app-shell" id="orderView">
+      <main class="app-shell dashboard-shell" id="homeView">
+        <section class="panel dashboard-hero" aria-labelledby="homeTitle">
+          <div>
+            <p class="step">Accueil</p>
+            <h2 id="homeTitle">Tableau de bord commercial</h2>
+            <p>
+              Les indicateurs seront alimentés avec votre prochain fichier de statistiques.
+            </p>
+          </div>
+          <div class="dashboard-status">
+            <span>Données stats</span>
+            <strong>En attente</strong>
+          </div>
+        </section>
+
+        <section class="dashboard-grid" aria-label="Indicateurs principaux">
+          <article class="panel metric-card">
+            <span>Commandes du jour</span>
+            <strong>--</strong>
+            <small>À connecter au fichier stats</small>
+          </article>
+          <article class="panel metric-card">
+            <span>Chiffre d'affaires HT</span>
+            <strong>--</strong>
+            <small>Jour / semaine / mois</small>
+          </article>
+          <article class="panel metric-card">
+            <span>Clients visités</span>
+            <strong>--</strong>
+            <small>Suivi activité terrain</small>
+          </article>
+          <article class="panel metric-card">
+            <span>Panier moyen</span>
+            <strong>--</strong>
+            <small>Montant moyen commande</small>
+          </article>
+        </section>
+
+        <section class="panel dashboard-panel" aria-labelledby="dashboardNextTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Préparation</p>
+              <h2 id="dashboardNextTitle">Prochains dashboards</h2>
+            </div>
+          </div>
+          <div class="dashboard-placeholder-grid">
+            <article>
+              <strong>Evolution des ventes</strong>
+              <span>Graphique mensuel ou hebdomadaire selon le fichier transmis.</span>
+            </article>
+            <article>
+              <strong>Top clients</strong>
+              <span>Classement par montant, nombre de commandes ou secteur.</span>
+            </article>
+            <article>
+              <strong>Top produits</strong>
+              <span>Références les plus commandées et quantités vendues.</span>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <main class="app-shell is-hidden" id="orderView">
       <section class="panel client-panel" aria-labelledby="clientTitle">
         <div class="panel-heading">
           <div>

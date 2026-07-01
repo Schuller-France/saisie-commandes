@@ -9,6 +9,7 @@ let currentUser = null;
 let visibleClients = [];
 let activeHistoryOrderId = null;
 let selectedTariff = null;
+let activeDashboardSector = null;
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -71,6 +72,7 @@ const tarifRecipient = document.querySelector("#tarifRecipient");
 const tarifSendStatus = document.querySelector("#tarifSendStatus");
 const sendTarifButton = document.querySelector("#sendTarifButton");
 const selectedTarifName = document.querySelector("#selectedTarifName");
+const dashboardSectorSwitch = document.querySelector("#dashboardSectorSwitch");
 
 async function postService(parameters) {
   if (!tariffConfig.endpoint) throw new Error("Service indisponible.");
@@ -236,6 +238,7 @@ function selectPrenetClient(client) {
 
 function getDashboardStats(user) {
   const stats = window.APP_STATS || {};
+  if (activeDashboardSector && stats.bySector?.[activeDashboardSector]) return stats.bySector[activeDashboardSector];
   if (stats.byUser?.[user.id]) return stats.byUser[user.id];
   if (user.id === "flo") return stats.default || {};
   return {
@@ -246,6 +249,26 @@ function getDashboardStats(user) {
     goals: [],
     topClients: [],
   };
+}
+
+function renderDashboardSectorSwitch(user) {
+  const sectors = user.sectors || [];
+  dashboardSectorSwitch.innerHTML = "";
+  dashboardSectorSwitch.classList.toggle("is-hidden", sectors.length < 2);
+  if (sectors.length < 2) return;
+
+  sectors.forEach((sector) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `dashboard-sector-button${sector === activeDashboardSector ? " is-active" : ""}`;
+    button.textContent = sector;
+    button.addEventListener("click", () => {
+      activeDashboardSector = sector;
+      renderDashboardSectorSwitch(user);
+      renderDashboard(user);
+    });
+    dashboardSectorSwitch.appendChild(button);
+  });
 }
 
 function formatNumber(value) {
@@ -413,12 +436,14 @@ function showLogin() {
 function showApp(user) {
   const sectors = Array.isArray(user.sectors) && user.sectors.length ? user.sectors : [user.sector].filter(Boolean);
   currentUser = { ...user, sectors, sector: sectors[0] || "Secteur" };
+  activeDashboardSector = currentUser.sectors[0] || null;
   visibleClients = getClientsForUser(currentUser);
   sessionStorage.setItem("orderEntryUser", JSON.stringify(currentUser));
   sessionLabel.textContent = `${currentUser.name} - ${currentUser.sectors.join(" + ")}`;
   loginView.classList.add("is-hidden");
   appView.classList.remove("is-hidden");
   resetOrder();
+  renderDashboardSectorSwitch(currentUser);
   renderDashboard(currentUser);
   renderPrenetEmpty();
   setActiveTab("home");

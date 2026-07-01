@@ -1,5 +1,51 @@
 // Généré depuis l'export QuickSight. Les colonnes d'articles et de marge sont ignorées.
 window.APP_STATS = {
+  bySector: {
+    "Secteur 3": {
+      updatedAt: "30 juin 2026",
+      periodLabel: "Projection à fin juin 2026 · Réalisé janvier à mai + prévisionnel juin · Secteur 3",
+      kpis: { revenue: 13695.21, clients: 14, averageClient: 978.23, revenueNote: "Prévisionnel mensuel du secteur 3", clientsNote: "14 clients valorisés", averageNote: "Médiane : 500,70 €" },
+      salesTrend: [{ label: "56", value: 6511.74 }, { label: "35", value: 2991.23 }, { label: "29", value: 1962.24 }, { label: "22", value: 1728.40 }, { label: "53", value: 501.60 }],
+      goals: [
+        { label: "Projection janvier–juin", current: 59128.21, target: 73000, format: "currency", note: "-13 871,79 € · -19,0% vs objectif" },
+        { label: "Comparaison N-1 janvier–juin", current: 59128.21, target: 64516, format: "currency", note: "-5 387,79 € · -8,4% vs 2025" },
+        { label: "Prévisionnel juin", current: 13695.21, target: 16000, format: "currency", note: "-2 304,79 € · -14,4% vs objectif" },
+        { label: "Juin vs N-1", current: 13695.21, target: 11885, format: "currency", note: "+1 810,21 € · +15,2% vs juin 2025" },
+      ],
+      topClients: [
+        { name: "ATLANTIC BROSSERIE", code: "FR0023228", revenue: 6011.94 },
+        { name: "ZOLPAN CO BREST GUIVAPAS", code: "FR0196816", revenue: 1152.00 },
+        { name: "NUANCES UNIKALO SERVI COULEURS SAINT MALO", code: "FR0221692", revenue: 940.32 },
+        { name: "LARMET - THL DISTRIBUTION", code: "FR0074224", revenue: 870.40 },
+        { name: "TOLLENS TREGUEUX SAINT BRIEUC", code: "FR0212758", revenue: 858.00 },
+        { name: "NUANCES UNIKALO SERVI COULEURS RENNES", code: "FR0162689", revenue: 688.80 },
+        { name: "NUANCES UNIKALO SERVI COULEURS LAVAL", code: "FR0162424", revenue: 501.60 },
+        { name: "TOLLENS LORIENT", code: "FR0180689", revenue: 499.80 },
+      ],
+    },
+    "Secteur 5A": {
+      updatedAt: "30 juin 2026",
+      periodLabel: "Projection à fin juin 2026 · Réalisé janvier à mai + prévisionnel juin · Secteur 5A",
+      kpis: { revenue: 31407.06, clients: 12, averageClient: 2617.25, revenueNote: "Prévisionnel mensuel du secteur 5A", clientsNote: "12 clients valorisés", averageNote: "Médiane : 979,37 €" },
+      salesTrend: [{ label: "14", value: 15780.30 }, { label: "76", value: 10792.82 }, { label: "50", value: 2875.20 }, { label: "27", value: 1469.14 }, { label: "49", value: 489.60 }],
+      goals: [
+        { label: "Projection janvier–juin", current: 100977.06, target: 68000, format: "currency", note: "+32 977,06 € · +48,5% vs objectif" },
+        { label: "Comparaison N-1 janvier–juin", current: 100977.06, target: 64514, format: "currency", note: "+36 463,06 € · +56,5% vs 2025" },
+        { label: "Prévisionnel juin", current: 31407.06, target: 12000, format: "currency", note: "+19 407,06 € · +161,7% vs objectif" },
+        { label: "Juin vs N-1", current: 31407.06, target: 13342, format: "currency", note: "+18 065,06 € · +135,4% vs juin 2025" },
+      ],
+      topClients: [
+        { name: "WURTH INDUSTRIE FRANCE", code: "FR0213128", revenue: 8800.00 },
+        { name: "TRICOLORE", code: "FR0235655", revenue: 7679.39 },
+        { name: "TECHNIROLL", code: "FR0256355", revenue: 7544.81 },
+        { name: "TOLLENS TOURLAVILLE", code: "FR0184355", revenue: 2530.80 },
+        { name: "LDI COULEURS DIFFUSION ROUEN", code: "FR0111726", revenue: 1648.42 },
+        { name: "BELIX PEINTURE", code: "FR0030958", revenue: 1469.14 },
+        { name: "DIOT PGM MAGASIN ALENCON", code: "FR0255124", revenue: 489.60 },
+        { name: "TOLLENS GRANVILLE", code: "FR0179584", revenue: 344.40 },
+      ],
+    },
+  },
   default: {
     updatedAt: "30 juin 2026",
     periodLabel: "Projection à fin juin 2026 · Réalisé janvier à mai + prévisionnel juin · Secteur 9",

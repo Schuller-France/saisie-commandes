@@ -273,9 +273,19 @@
               <button class="primary-button" type="button" id="selectTarif5010">Envoyer ce tarif</button>
             </article>
 
+            <article class="tarif-card">
+              <div class="tarif-icon" aria-hidden="true">€</div>
+              <div class="tarif-card-copy">
+                <span>Tarif client</span>
+                <h3>Tarif de base</h3>
+                <p>Tarif de base applicable à partir du 1er juillet 2026.</p>
+              </div>
+              <button class="primary-button" type="button" id="selectTarifBase">Envoyer ce tarif</button>
+            </article>
+
             <form class="tarif-send-form is-hidden" id="tarifSendForm">
               <div class="tarif-form-heading">
-                <div><span>Document sélectionné</span><strong>Tarif 50 + 10</strong></div>
+                <div><span>Document sélectionné</span><strong id="selectedTarifName">Tarif 50 + 10</strong></div>
                 <small>Expéditeur : Schuller – Ne pas répondre</small>
               </div>
               <label for="tarifRecipient">Adresse e-mail du client</label>

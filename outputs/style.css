@@ -20,7 +20,7 @@
 .tarif-card-copy span, .tarif-form-heading span { color: #6d7480; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .tarif-card-copy h3 { margin: 6px 0 8px; font-size: 25px; }
 .tarif-card-copy p, .tarif-form-heading small { margin: 0; color: #626b78; }
-.tarif-send-form { display: grid; gap: 14px; }
+.tarif-send-form { display: grid; grid-column: 1 / -1; gap: 14px; }
 .tarif-form-heading { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; padding-bottom: 16px; border-bottom: 1px solid #e5e8ed; }
 .tarif-form-heading div { display: grid; gap: 5px; }
 .tarif-send-form label { font-weight: 700; color: #313844; }

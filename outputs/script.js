@@ -60,6 +60,7 @@ const prenetResult = document.querySelector("#prenetResult");
 const prenetSector = document.querySelector("#prenetSector");
 const selectTarif5010 = document.querySelector("#selectTarif5010");
 const selectTarifBase = document.querySelector("#selectTarifBase");
+const selectCatalogue2026 = document.querySelector("#selectCatalogue2026");
 const tarifSendForm = document.querySelector("#tarifSendForm");
 const tarifRecipient = document.querySelector("#tarifRecipient");
 const tarifSendStatus = document.querySelector("#tarifSendStatus");
@@ -1136,6 +1137,7 @@ tarifTab.addEventListener("click", () => setActiveTab("tarif"));
 prenetClientSearch.addEventListener("input", (event) => renderPrenetSuggestions(event.target.value));
 selectTarif5010.addEventListener("click", () => openTarifForm("tarif-50-plus-10"));
 selectTarifBase.addEventListener("click", () => openTarifForm("tarif-de-base"));
+selectCatalogue2026.addEventListener("click", () => openTarifForm("catalogue-2026"));
 tarifSendForm.addEventListener("submit", sendTarif);
 logoutButton.addEventListener("click", showLogin);
 loginForm.addEventListener("submit", (event) => {

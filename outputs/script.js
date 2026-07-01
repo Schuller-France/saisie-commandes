@@ -2,14 +2,6 @@ const allClients = window.APP_DATA?.clients || [];
 const products = window.APP_DATA?.products || [];
 const prenetClients = window.PRENET_DATA?.clients || [];
 const tariffConfig = window.TARIF_CONFIG || {};
-const users = [
-  {
-    id: "flo",
-    password: "flo",
-    name: "Flo",
-    sector: "Secteur 9",
-  },
-];
 
 let selectedClient = null;
 let lines = [];
@@ -39,6 +31,19 @@ const loginForm = document.querySelector("#loginForm");
 const loginId = document.querySelector("#loginId");
 const loginPassword = document.querySelector("#loginPassword");
 const loginError = document.querySelector("#loginError");
+const loginSubmitButton = document.querySelector("#loginSubmitButton");
+const forgotPasswordButton = document.querySelector("#forgotPasswordButton");
+const passwordResetCard = document.querySelector("#passwordResetCard");
+const passwordResetRequestForm = document.querySelector("#passwordResetRequestForm");
+const passwordResetConfirmForm = document.querySelector("#passwordResetConfirmForm");
+const passwordResetEmail = document.querySelector("#passwordResetEmail");
+const passwordResetCode = document.querySelector("#passwordResetCode");
+const newPassword = document.querySelector("#newPassword");
+const confirmNewPassword = document.querySelector("#confirmNewPassword");
+const passwordResetStatus = document.querySelector("#passwordResetStatus");
+const requestResetButton = document.querySelector("#requestResetButton");
+const confirmResetButton = document.querySelector("#confirmResetButton");
+const backToLoginButton = document.querySelector("#backToLoginButton");
 const logoutButton = document.querySelector("#logoutButton");
 const sessionLabel = document.querySelector("#sessionLabel");
 const homeTab = document.querySelector("#homeTab");
@@ -66,6 +71,17 @@ const tarifRecipient = document.querySelector("#tarifRecipient");
 const tarifSendStatus = document.querySelector("#tarifSendStatus");
 const sendTarifButton = document.querySelector("#sendTarifButton");
 const selectedTarifName = document.querySelector("#selectedTarifName");
+
+async function postService(parameters) {
+  if (!tariffConfig.endpoint) throw new Error("Service indisponible.");
+  const response = await fetch(tariffConfig.endpoint, {
+    method: "POST",
+    body: new URLSearchParams(parameters),
+  });
+  const result = JSON.parse(await response.text());
+  if (!result.ok) throw new Error(result.message || "Opération impossible.");
+  return result;
+}
 
 function resetTarifForm() {
   tarifSendForm.reset();
@@ -129,8 +145,9 @@ async function sendTarif(event) {
 function getVisiblePrenetClients() {
   if (!currentUser) return [];
   const allowedCodes = new Set(visibleClients.map((client) => normalize(client.code)));
+  const allowedSectors = new Set((currentUser.sectors || [currentUser.sector]).map(normalize));
   return prenetClients.filter((client) => {
-    const sameSector = normalize(client.sector || "") === normalize(currentUser.sector);
+    const sameSector = allowedSectors.has(normalize(client.sector || ""));
     const allowedClient = !client.code || allowedCodes.has(normalize(client.code));
     return sameSector && allowedClient;
   });
@@ -140,7 +157,7 @@ function renderPrenetEmpty() {
   prenetClientSearch.value = "";
   prenetClientSuggestions.innerHTML = "";
   prenetClientSuggestions.classList.remove("is-open");
-  prenetSector.textContent = currentUser?.sector || "Secteur";
+  prenetSector.textContent = currentUser?.sectors?.join(" + ") || currentUser?.sector || "Secteur";
   prenetResult.innerHTML = `
     <div class="prenet-empty">
       <strong>Sélectionnez un client</strong>
@@ -219,7 +236,16 @@ function selectPrenetClient(client) {
 
 function getDashboardStats(user) {
   const stats = window.APP_STATS || {};
-  return stats.byUser?.[user.id] || stats.default || {};
+  if (stats.byUser?.[user.id]) return stats.byUser[user.id];
+  if (user.id === "flo") return stats.default || {};
+  return {
+    updatedAt: "À venir",
+    periodLabel: `Les statistiques ${user.sectors.join(" + ")} seront affichées dès leur import.`,
+    kpis: { revenue: 0, clients: visibleClients.length, averageClient: 0 },
+    salesTrend: [],
+    goals: [],
+    topClients: [],
+  };
 }
 
 function formatNumber(value) {
@@ -341,7 +367,29 @@ function renderClientSuggestions(query) {
 }
 
 function getClientsForUser(user) {
-  return allClients.filter((client) => normalize(client.sector) === normalize(user.sector));
+  const allowedSectors = new Set((user.sectors || [user.sector]).map(normalize));
+  return allClients.filter((client) => allowedSectors.has(normalize(client.sector)));
+}
+
+function closePasswordReset() {
+  passwordResetCard.classList.add("is-hidden");
+  loginForm.classList.remove("is-hidden");
+  passwordResetRequestForm.reset();
+  passwordResetConfirmForm.reset();
+  passwordResetRequestForm.classList.remove("is-hidden");
+  passwordResetConfirmForm.classList.add("is-hidden");
+  passwordResetStatus.textContent = "";
+  passwordResetStatus.className = "reset-status";
+  requestAnimationFrame(() => loginId.focus());
+}
+
+function openPasswordReset() {
+  loginForm.classList.add("is-hidden");
+  passwordResetCard.classList.remove("is-hidden");
+  passwordResetStatus.textContent = "";
+  passwordResetStatus.className = "reset-status";
+  if (loginId.value.includes("@")) passwordResetEmail.value = loginId.value.trim();
+  requestAnimationFrame(() => passwordResetEmail.focus());
 }
 
 function showLogin() {
@@ -354,6 +402,8 @@ function showLogin() {
   loginId.value = "";
   loginPassword.value = "";
   loginError.textContent = "";
+  loginError.className = "login-error";
+  closePasswordReset();
   resetOrder();
   renderPrenetEmpty();
   resetTarifForm();
@@ -361,42 +411,106 @@ function showLogin() {
 }
 
 function showApp(user) {
-  currentUser = user;
-  visibleClients = getClientsForUser(user);
-  sessionStorage.setItem("orderEntryUser", user.id);
-  sessionLabel.textContent = `${user.name} - ${user.sector}`;
+  const sectors = Array.isArray(user.sectors) && user.sectors.length ? user.sectors : [user.sector].filter(Boolean);
+  currentUser = { ...user, sectors, sector: sectors[0] || "Secteur" };
+  visibleClients = getClientsForUser(currentUser);
+  sessionStorage.setItem("orderEntryUser", JSON.stringify(currentUser));
+  sessionLabel.textContent = `${currentUser.name} - ${currentUser.sectors.join(" + ")}`;
   loginView.classList.add("is-hidden");
   appView.classList.remove("is-hidden");
   resetOrder();
-  renderDashboard(user);
+  renderDashboard(currentUser);
   renderPrenetEmpty();
   setActiveTab("home");
   renderOrderHistory();
 }
 
-function authenticate(id, password) {
-  return users.find((user) => normalize(user.id) === normalize(id) && user.password === password);
+async function submitLogin() {
+  loginError.textContent = "";
+  loginError.className = "login-error";
+  loginSubmitButton.disabled = true;
+  loginSubmitButton.textContent = "Connexion…";
+  try {
+    const result = await postService({
+      action: "login",
+      identifier: loginId.value.trim(),
+      password: loginPassword.value,
+    });
+    showApp(result.user);
+  } catch (error) {
+    loginError.textContent = error.message || "Connexion impossible.";
+    loginPassword.select();
+  } finally {
+    loginSubmitButton.disabled = false;
+    loginSubmitButton.textContent = "Se connecter";
+  }
 }
 
-function submitLogin() {
-  const user = authenticate(loginId.value.trim(), loginPassword.value);
+async function requestPasswordReset(event) {
+  event.preventDefault();
+  passwordResetStatus.textContent = "";
+  passwordResetStatus.className = "reset-status";
+  requestResetButton.disabled = true;
+  requestResetButton.textContent = "Envoi en cours…";
+  try {
+    const result = await postService({ action: "requestReset", email: passwordResetEmail.value.trim() });
+    passwordResetStatus.textContent = result.message;
+    passwordResetStatus.classList.add("is-success");
+    passwordResetRequestForm.classList.add("is-hidden");
+    passwordResetConfirmForm.classList.remove("is-hidden");
+    requestAnimationFrame(() => passwordResetCode.focus());
+  } catch (error) {
+    passwordResetStatus.textContent = error.message || "La demande n’a pas pu être envoyée.";
+    passwordResetStatus.classList.add("is-error");
+  } finally {
+    requestResetButton.disabled = false;
+    requestResetButton.textContent = "Recevoir mon code";
+  }
+}
 
-  if (!user) {
-    loginError.textContent = "Identifiant ou mot de passe incorrect.";
-    loginPassword.select();
+async function confirmPasswordReset(event) {
+  event.preventDefault();
+  passwordResetStatus.textContent = "";
+  passwordResetStatus.className = "reset-status";
+  if (newPassword.value !== confirmNewPassword.value) {
+    passwordResetStatus.textContent = "Les deux mots de passe ne correspondent pas.";
+    passwordResetStatus.classList.add("is-error");
+    confirmNewPassword.focus();
     return;
   }
 
-  showApp(user);
+  confirmResetButton.disabled = true;
+  confirmResetButton.textContent = "Modification…";
+  try {
+    const result = await postService({
+      action: "confirmReset",
+      email: passwordResetEmail.value.trim(),
+      code: passwordResetCode.value.trim(),
+      newPassword: newPassword.value,
+    });
+    loginId.value = result.identifier || passwordResetEmail.value.trim();
+    closePasswordReset();
+    loginError.textContent = "Mot de passe modifié. Vous pouvez vous connecter.";
+    loginError.classList.add("is-success");
+    loginPassword.focus();
+  } catch (error) {
+    passwordResetStatus.textContent = error.message || "Le mot de passe n’a pas pu être modifié.";
+    passwordResetStatus.classList.add("is-error");
+  } finally {
+    confirmResetButton.disabled = false;
+    confirmResetButton.textContent = "Modifier mon mot de passe";
+  }
 }
 
 function restoreSession() {
-  const savedUserId = sessionStorage.getItem("orderEntryUser");
-  const savedUser = users.find((user) => user.id === savedUserId);
-
-  if (savedUser) {
-    showApp(savedUser);
-    return;
+  try {
+    const savedUser = JSON.parse(sessionStorage.getItem("orderEntryUser") || "null");
+    if (savedUser?.id) {
+      showApp(savedUser);
+      return;
+    }
+  } catch (error) {
+    sessionStorage.removeItem("orderEntryUser");
   }
 
   loginView.classList.remove("is-hidden");
@@ -1144,6 +1258,10 @@ loginForm.addEventListener("submit", (event) => {
   event.preventDefault();
   submitLogin();
 });
+forgotPasswordButton.addEventListener("click", openPasswordReset);
+backToLoginButton.addEventListener("click", closePasswordReset);
+passwordResetRequestForm.addEventListener("submit", requestPasswordReset);
+passwordResetConfirmForm.addEventListener("submit", confirmPasswordReset);
 loginPassword.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();

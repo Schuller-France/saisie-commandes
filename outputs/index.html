@@ -8,7 +8,7 @@
       content="Interface simple de saisie de commande pour commerciaux terrain."
     />
     <title>Saisie de commande</title>
-    <link rel="stylesheet" href="style.css?v=20260701d" />
+    <link rel="stylesheet" href="style.css?v=20260701e" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -29,8 +29,42 @@
         </label>
 
         <p class="login-error" id="loginError" role="alert"></p>
-        <button class="primary-button full" type="submit">Se connecter</button>
+        <button class="primary-button full" type="submit" id="loginSubmitButton">Se connecter</button>
+        <button class="text-button" type="button" id="forgotPasswordButton">Mot de passe oublié ?</button>
       </form>
+
+      <section class="login-card is-hidden" id="passwordResetCard" aria-labelledby="passwordResetTitle">
+        <p class="eyebrow">Accès sécurisé</p>
+        <h1 id="passwordResetTitle">Réinitialiser le mot de passe</h1>
+        <p class="login-intro">Recevez un code à 6 chiffres sur votre adresse enregistrée.</p>
+
+        <form class="password-reset-form" id="passwordResetRequestForm">
+          <label for="passwordResetEmail">
+            Adresse e-mail
+            <input id="passwordResetEmail" type="email" autocomplete="email" required />
+          </label>
+          <button class="primary-button full" type="submit" id="requestResetButton">Recevoir mon code</button>
+        </form>
+
+        <form class="password-reset-form is-hidden" id="passwordResetConfirmForm">
+          <label for="passwordResetCode">
+            Code reçu
+            <input id="passwordResetCode" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required />
+          </label>
+          <label for="newPassword">
+            Nouveau mot de passe
+            <input id="newPassword" type="password" autocomplete="new-password" minlength="8" required />
+          </label>
+          <label for="confirmNewPassword">
+            Confirmer le mot de passe
+            <input id="confirmNewPassword" type="password" autocomplete="new-password" minlength="8" required />
+          </label>
+          <button class="primary-button full" type="submit" id="confirmResetButton">Modifier mon mot de passe</button>
+        </form>
+
+        <p class="reset-status" id="passwordResetStatus" role="status"></p>
+        <button class="text-button" type="button" id="backToLoginButton">Retour à la connexion</button>
+      </section>
     </section>
 
     <div class="app-view is-hidden" id="appView">
@@ -315,6 +349,6 @@
     <script src="prenets.js"></script>
     <script src="tarifs.js?v=20260701d"></script>
     <script src="data.js"></script>
-    <script src="script.js?v=20260701d"></script>
+    <script src="script.js?v=20260701e"></script>
   </body>
 </html>

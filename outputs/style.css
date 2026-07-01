@@ -116,6 +116,46 @@ button {
   font-weight: 700;
 }
 
+.login-error.is-success {
+  color: var(--green);
+}
+
+.text-button {
+  border: 0;
+  padding: 4px;
+  background: transparent;
+  color: var(--red);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.text-button:hover {
+  text-decoration: underline;
+}
+
+.password-reset-form {
+  display: grid;
+  gap: 18px;
+}
+
+.reset-status {
+  min-height: 20px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.reset-status.is-error {
+  color: var(--red);
+}
+
+.reset-status.is-success {
+  color: var(--green);
+}
+
 .app-header {
   position: sticky;
   top: 0;

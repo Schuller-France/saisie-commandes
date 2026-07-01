@@ -13,5 +13,10 @@ window.TARIF_CONFIG = {
       name: "Tarif de base",
       driveFileId: "1wnUuhEyPYRQ733jqwLpu6nsq6TnppM_5",
     },
+    {
+      id: "catalogue-2026",
+      name: "Catalogue 2026",
+      driveFileId: "1SpC_iOIaQR0hBiViweLTPH5LjCnZi3xj",
+    },
   ],
 };

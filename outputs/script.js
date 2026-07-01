@@ -73,7 +73,7 @@ function resetTarifForm() {
   tarifSendStatus.textContent = "";
   tarifSendStatus.className = "tarif-send-status";
   sendTarifButton.disabled = false;
-  sendTarifButton.textContent = "Envoyer le tarif";
+  sendTarifButton.textContent = "Envoyer le document";
 }
 
 function openTarifForm(tariffId) {
@@ -114,7 +114,7 @@ async function sendTarif(event) {
     const response = await fetch(tariffConfig.endpoint, { method: "POST", body });
     const result = JSON.parse(await response.text());
     if (!result.ok) throw new Error(result.message || "Envoi impossible");
-    tarifSendStatus.textContent = `Tarif envoyé à ${recipient}.`;
+    tarifSendStatus.textContent = `${selectedTariff.name} envoyé à ${recipient}.`;
     tarifSendStatus.classList.add("is-success");
     tarifRecipient.value = "";
   } catch (error) {
@@ -122,7 +122,7 @@ async function sendTarif(event) {
     tarifSendStatus.classList.add("is-error");
   } finally {
     sendTarifButton.disabled = false;
-    sendTarifButton.textContent = "Envoyer le tarif";
+    sendTarifButton.textContent = "Envoyer le document";
   }
 }
 

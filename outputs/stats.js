@@ -1,0 +1,51 @@
+// Généré depuis l'export QuickSight. Les colonnes d'articles et de marge sont ignorées.
+window.APP_STATS = {
+  default: {
+    updatedAt: "30 juin 2026",
+    periodLabel: "Projection à fin juin 2026 · Réalisé janvier à mai + prévisionnel juin · Secteur 9",
+    kpis: {
+      revenue: 40220.48,
+      clients: 23,
+      averageClient: 1748.72,
+      medianClient: 598.95,
+      top5Share: 72.4,
+      revenueNote: "Prévisionnel mensuel du secteur 9",
+      clientsNote: "23 clients valorisés",
+      averageNote: "Médiane : 598,95 €",
+    },
+    salesTrend: [
+      { label: "44", value: 16818.86 },
+      { label: "49", value: 13315.36 },
+      { label: "85", value: 4925.12 },
+      { label: "33", value: 1668.00 },
+      { label: "72", value: 1388.27 },
+      { label: "17", value: 1311.90 },
+    ],
+    goals: [
+      { label: "Projection janvier–juin", current: 176689.48, target: 174000.00, format: "currency", note: "+2 689,48 € · +1,5% vs objectif" },
+      { label: "Comparaison N-1 janvier–juin", current: 176689.48, target: 177476.00, format: "currency", note: "-786,52 € · -0,4% vs 2025" },
+      { label: "Prévisionnel juin", current: 40220.48, target: 30000.00, format: "currency", note: "+10 220,48 € · +34,1% vs objectif" },
+      { label: "Juin vs N-1", current: 40220.48, target: 35774.00, format: "currency", note: "+4 446,48 € · +12,4% vs juin 2025" },
+    ],
+    topClients: [
+      { code: "FR0221063", name: "RITTAUD", revenue: 9784.16 },
+      { code: "FR0236621", name: "ADITEC ST BARTHELEMY D'ANJOU", revenue: 6952.00 },
+      { code: "FR0228753", name: "ADITEC CHOLET", revenue: 5900.40 },
+      { code: "FR0058818", name: "COUTAUD MANUTENTION BRETIGNOLLES", revenue: 3465.12 },
+      { code: "FR0260921", name: "AXE DECORS", revenue: 3024.00 },
+      { code: "FR0246058", name: "LSA COUTAUD", revenue: 1668.00 },
+      { code: "FR0238123", name: "MSB", revenue: 1460.00 },
+      { code: "FR0112229", name: "LEBRUN 44 OUTILLAGE", revenue: 1372.28 },
+    ],
+    topProducts: [
+      { ref: "26F02100", revenue: 9784.16 },
+      { ref: "26F02145", revenue: 6952.00 },
+      { ref: "26C02214", revenue: 5900.40 },
+      { ref: "26F02386", revenue: 3465.12 },
+      { ref: "26F02004", revenue: 3024.00 },
+      { ref: "26F02160", revenue: 1668.00 },
+      { ref: "26F02382", revenue: 1372.28 },
+      { ref: "26F02075", revenue: 1311.90 },
+    ],
+  },
+};

@@ -1,5 +1,7 @@
 const allClients = window.APP_DATA?.clients || [];
 const products = window.APP_DATA?.products || [];
+const prenetClients = window.PRENET_DATA?.clients || [];
+const tariffConfig = window.TARIF_CONFIG || {};
 const users = [
   {
     id: "flo",
@@ -41,12 +43,226 @@ const sessionLabel = document.querySelector("#sessionLabel");
 const homeTab = document.querySelector("#homeTab");
 const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
+const prenetTab = document.querySelector("#prenetTab");
+const tarifTab = document.querySelector("#tarifTab");
 const homeView = document.querySelector("#homeView");
 const orderView = document.querySelector("#orderView");
 const historyView = document.querySelector("#historyView");
+const prenetView = document.querySelector("#prenetView");
+const tarifView = document.querySelector("#tarifView");
 const historyList = document.querySelector("#historyList");
 const historyDetail = document.querySelector("#historyDetail");
 const historyCount = document.querySelector("#historyCount");
+const prenetClientSearch = document.querySelector("#prenetClientSearch");
+const prenetClientSuggestions = document.querySelector("#prenetClientSuggestions");
+const prenetResult = document.querySelector("#prenetResult");
+const prenetSector = document.querySelector("#prenetSector");
+const selectTarif5010 = document.querySelector("#selectTarif5010");
+const tarifSendForm = document.querySelector("#tarifSendForm");
+const tarifRecipient = document.querySelector("#tarifRecipient");
+const tarifSendStatus = document.querySelector("#tarifSendStatus");
+const sendTarifButton = document.querySelector("#sendTarifButton");
+
+function resetTarifForm() {
+  tarifSendForm.reset();
+  tarifSendForm.classList.add("is-hidden");
+  tarifSendStatus.textContent = "";
+  tarifSendStatus.className = "tarif-send-status";
+  sendTarifButton.disabled = false;
+  sendTarifButton.textContent = "Envoyer le tarif";
+}
+
+function openTarifForm() {
+  tarifSendForm.classList.remove("is-hidden");
+  tarifSendStatus.textContent = tariffConfig.endpoint
+    ? ""
+    : "L’envoi sera disponible après l’autorisation Google de l’adresse expéditrice.";
+  requestAnimationFrame(() => tarifRecipient.focus());
+}
+
+async function sendTarif(event) {
+  event.preventDefault();
+  const recipient = tarifRecipient.value.trim();
+  tarifSendStatus.className = "tarif-send-status";
+
+  if (!tarifRecipient.checkValidity()) {
+    tarifSendStatus.textContent = "Saisissez une adresse e-mail valide.";
+    tarifSendStatus.classList.add("is-error");
+    tarifRecipient.focus();
+    return;
+  }
+
+  if (!tariffConfig.endpoint) {
+    tarifSendStatus.textContent = "L’adresse d’envoi doit d’abord être autorisée par Google.";
+    tarifSendStatus.classList.add("is-warning");
+    return;
+  }
+
+  sendTarifButton.disabled = true;
+  sendTarifButton.textContent = "Envoi en cours…";
+  tarifSendStatus.textContent = "";
+
+  try {
+    const body = new URLSearchParams({ recipient, tariff: tariffConfig.tariffName || "Tarif 50 + 10" });
+    const response = await fetch(tariffConfig.endpoint, { method: "POST", body });
+    const result = JSON.parse(await response.text());
+    if (!result.ok) throw new Error(result.message || "Envoi impossible");
+    tarifSendStatus.textContent = `Tarif envoyé à ${recipient}.`;
+    tarifSendStatus.classList.add("is-success");
+    tarifRecipient.value = "";
+  } catch (error) {
+    tarifSendStatus.textContent = "L’envoi n’a pas pu être effectué. Réessayez dans quelques instants.";
+    tarifSendStatus.classList.add("is-error");
+  } finally {
+    sendTarifButton.disabled = false;
+    sendTarifButton.textContent = "Envoyer le tarif";
+  }
+}
+
+function getVisiblePrenetClients() {
+  if (!currentUser) return [];
+  const allowedCodes = new Set(visibleClients.map((client) => normalize(client.code)));
+  return prenetClients.filter((client) => {
+    const sameSector = normalize(client.sector || "") === normalize(currentUser.sector);
+    const allowedClient = !client.code || allowedCodes.has(normalize(client.code));
+    return sameSector && allowedClient;
+  });
+}
+
+function renderPrenetEmpty() {
+  prenetClientSearch.value = "";
+  prenetClientSuggestions.innerHTML = "";
+  prenetClientSuggestions.classList.remove("is-open");
+  prenetSector.textContent = currentUser?.sector || "Secteur";
+  prenetResult.innerHTML = `
+    <div class="prenet-empty">
+      <strong>Sélectionnez un client</strong>
+      <span>Ses nouveaux prix nets apparaîtront ici, classés par référence.</span>
+    </div>`;
+}
+
+function renderPrenetSuggestions(query) {
+  const cleanQuery = normalize(query.trim());
+  prenetClientSuggestions.innerHTML = "";
+  if (!cleanQuery) {
+    prenetClientSuggestions.classList.remove("is-open");
+    return;
+  }
+
+  const matches = getVisiblePrenetClients()
+    .filter((client) => normalize(`${client.code || ""} ${client.name || ""}`).includes(cleanQuery))
+    .slice(0, 12);
+
+  if (!matches.length) {
+    prenetClientSuggestions.innerHTML = '<div class="suggestion-empty">Aucun client avec des prix nets dans votre secteur.</div>';
+    prenetClientSuggestions.classList.add("is-open");
+    return;
+  }
+
+  matches.forEach((client) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "suggestion";
+    button.innerHTML = `<strong>${escapeHtml(client.name || "Client")}</strong><span>${escapeHtml(client.code || "")}</span>`;
+    button.addEventListener("click", () => selectPrenetClient(client));
+    prenetClientSuggestions.appendChild(button);
+  });
+  prenetClientSuggestions.classList.add("is-open");
+}
+
+function renderPrenetTable(title, entries, statusClass) {
+  if (!entries.length) return "";
+  return `
+    <section class="prenet-group">
+      <div class="prenet-group-heading">
+        <h3>${escapeHtml(title)}</h3>
+        <span class="prenet-count">${entries.length} référence${entries.length > 1 ? "s" : ""}</span>
+      </div>
+      <div class="prenet-table-wrap">
+        <table class="prenet-table">
+          <thead><tr><th>Référence</th><th>Quantité</th><th>Prix net</th><th>Statut</th></tr></thead>
+          <tbody>${entries.map((entry) => `
+            <tr>
+              <td><strong>${escapeHtml(entry.ref || "-")}</strong>${entry.designation ? `<small>${escapeHtml(entry.designation)}</small>` : ""}</td>
+              <td>${formatNumber(entry.quantity)}</td>
+              <td><strong>${escapeHtml(formatter.format(Number(entry.price) || 0))}</strong></td>
+              <td><span class="prenet-badge ${statusClass}">${escapeHtml(entry.status || title)}</span></td>
+            </tr>`).join("")}</tbody>
+        </table>
+      </div>
+    </section>`;
+}
+
+function selectPrenetClient(client) {
+  prenetClientSearch.value = `${client.name || ""}${client.code ? ` · ${client.code}` : ""}`;
+  prenetClientSuggestions.classList.remove("is-open");
+  const entries = Array.isArray(client.entries) ? [...client.entries] : [];
+  entries.sort((a, b) => (a.ref || "").localeCompare(b.ref || "", "fr", { numeric: true }));
+  const newEntries = entries.filter((entry) => !normalize(entry.status || "").startsWith("ancien"));
+
+  prenetResult.innerHTML = `
+    <header class="prenet-client-header">
+      <div><p class="step">${escapeHtml(client.code || currentUser.sector)}</p><h2>${escapeHtml(client.name || "Client")}</h2></div>
+      <div class="prenet-update"><span>Mise à jour</span><strong>${escapeHtml(window.PRENET_DATA?.updatedAt || "-")}</strong></div>
+    </header>
+    ${entries.length
+      ? renderPrenetTable("Nouveaux prix nets", newEntries, "is-new")
+      : '<div class="prenet-empty"><strong>Aucun prix net</strong><span>Aucune ligne disponible pour ce client.</span></div>'}`;
+}
+
+function getDashboardStats(user) {
+  const stats = window.APP_STATS || {};
+  return stats.byUser?.[user.id] || stats.default || {};
+}
+
+function formatNumber(value) {
+  return new Intl.NumberFormat("fr-FR").format(Number(value) || 0);
+}
+
+function renderDashboard(user) {
+  const stats = getDashboardStats(user);
+  const kpis = stats.kpis || {};
+  const trend = Array.isArray(stats.salesTrend) ? stats.salesTrend : [];
+  const goals = Array.isArray(stats.goals) ? stats.goals : [];
+  const topClients = Array.isArray(stats.topClients) ? stats.topClients : [];
+
+  document.querySelector("#dashboardUpdatedAt").textContent = stats.updatedAt || "En attente";
+  document.querySelector("#dashboardPeriod").textContent = stats.periodLabel || "Vue synthétique de votre activité commerciale.";
+  document.querySelector("#metricOrders").textContent = formatter.format(Number(kpis.revenue) || 0);
+  document.querySelector("#metricRevenue").textContent = formatNumber(kpis.clients);
+  document.querySelector("#metricClients").textContent = formatter.format(Number(kpis.averageClient) || 0);
+  document.querySelector("#metricOrdersNote").textContent = kpis.revenueNote || "Secteur du commercial";
+  document.querySelector("#metricRevenueNote").textContent = kpis.clientsNote || "Clients avec CA prévisionnel";
+  document.querySelector("#metricClientsNote").textContent = kpis.averageNote || "Valeur moyenne du portefeuille";
+
+  const maxTrend = Math.max(...trend.map((item) => Number(item.value) || 0), 1);
+  document.querySelector("#trendTotal").textContent = trend.length
+    ? formatter.format(trend.reduce((sum, item) => sum + (Number(item.value) || 0), 0))
+    : "Aucune donnée";
+  document.querySelector("#salesChart").innerHTML = trend.length
+    ? trend.map((item) => {
+        const value = Number(item.value) || 0;
+        const height = Math.max((value / maxTrend) * 100, value > 0 ? 6 : 0);
+        return `<div class="chart-column"><span class="chart-value">${escapeHtml(formatter.format(value))}</span><div class="chart-bar-track"><div class="chart-bar" style="height:${height}%"></div></div><strong>${escapeHtml(item.label || "-")}</strong></div>`;
+      }).join("")
+    : '<div class="dashboard-empty">Aucune donnée géographique.</div>';
+
+  document.querySelector("#goalList").innerHTML = goals.length
+    ? goals.map((goal) => {
+        const current = Number(goal.current) || 0;
+        const target = Number(goal.target) || 0;
+        const percent = target > 0 ? Math.min(Math.round((current / target) * 100), 100) : 0;
+        const displayCurrent = goal.format === "currency" ? formatter.format(current) : formatNumber(current);
+        const displayTarget = goal.format === "currency" ? formatter.format(target) : formatNumber(target);
+        return `<div class="goal-item"><div><strong>${escapeHtml(goal.label || "Indicateur")}</strong><span>${escapeHtml(displayCurrent)}</span></div><div class="goal-track"><span style="width:${percent}%"></span></div><small>${escapeHtml(goal.note || `${percent}% du CA total`)}</small></div>`;
+      }).join("")
+    : '<div class="dashboard-empty">Aucun objectif renseigné.</div>';
+
+  document.querySelector("#topClientsBody").innerHTML = topClients.length
+    ? topClients.slice(0, 8).map((client) => `<tr><td><strong>${escapeHtml(client.name || "-")}</strong><small>${escapeHtml(client.code || "")}</small></td><td>${escapeHtml(formatter.format(Number(client.revenue) || 0))}</td></tr>`).join("")
+    : '<tr><td colspan="2" class="dashboard-empty">Aucune donnée client.</td></tr>';
+
+}
 
 function escapeHtml(value) {
   return value
@@ -132,6 +348,8 @@ function showLogin() {
   loginPassword.value = "";
   loginError.textContent = "";
   resetOrder();
+  renderPrenetEmpty();
+  resetTarifForm();
   requestAnimationFrame(() => loginId.focus());
 }
 
@@ -143,6 +361,8 @@ function showApp(user) {
   loginView.classList.add("is-hidden");
   appView.classList.remove("is-hidden");
   resetOrder();
+  renderDashboard(user);
+  renderPrenetEmpty();
   setActiveTab("home");
   renderOrderHistory();
 }
@@ -543,12 +763,18 @@ function setActiveTab(tabName) {
   const showHome = tabName === "home";
   const showOrder = tabName === "order";
   const showHistory = tabName === "history";
+  const showPrenet = tabName === "prenet";
+  const showTarif = tabName === "tarif";
   homeTab.classList.toggle("is-active", showHome);
   orderTab.classList.toggle("is-active", showOrder);
   historyTab.classList.toggle("is-active", showHistory);
+  prenetTab.classList.toggle("is-active", showPrenet);
+  tarifTab.classList.toggle("is-active", showTarif);
   homeView.classList.toggle("is-hidden", !showHome);
   orderView.classList.toggle("is-hidden", !showOrder);
   historyView.classList.toggle("is-hidden", !showHistory);
+  prenetView.classList.toggle("is-hidden", !showPrenet);
+  tarifView.classList.toggle("is-hidden", !showTarif);
 
   if (showOrder) {
     requestAnimationFrame(() => clientSearch.focus());
@@ -556,6 +782,10 @@ function setActiveTab(tabName) {
 
   if (showHistory) {
     renderOrderHistory();
+  }
+
+  if (showPrenet) {
+    requestAnimationFrame(() => prenetClientSearch.focus());
   }
 }
 
@@ -895,6 +1125,11 @@ document.querySelector("#resetOrder").addEventListener("click", () => {
 homeTab.addEventListener("click", () => setActiveTab("home"));
 orderTab.addEventListener("click", () => setActiveTab("order"));
 historyTab.addEventListener("click", () => setActiveTab("history"));
+prenetTab.addEventListener("click", () => setActiveTab("prenet"));
+tarifTab.addEventListener("click", () => setActiveTab("tarif"));
+prenetClientSearch.addEventListener("input", (event) => renderPrenetSuggestions(event.target.value));
+selectTarif5010.addEventListener("click", openTarifForm);
+tarifSendForm.addEventListener("submit", sendTarif);
 logoutButton.addEventListener("click", showLogin);
 loginForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -916,6 +1151,9 @@ loginId.addEventListener("keydown", (event) => {
 document.addEventListener("click", (event) => {
   if (!event.target.closest(".search-block")) {
     clientSuggestions.classList.remove("is-open");
+  }
+  if (!event.target.closest(".prenet-search-block")) {
+    prenetClientSuggestions.classList.remove("is-open");
   }
 });
 

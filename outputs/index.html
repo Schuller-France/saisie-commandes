@@ -37,7 +37,6 @@
       <header class="app-header">
         <div>
           <p class="eyebrow" id="sessionLabel">Schuller Eh'Klar France</p>
-          <h1>Saisie de commande</h1>
         </div>
         <div class="header-actions">
           <button class="ghost-button" type="button" id="resetOrder">Nouvelle commande</button>
@@ -49,6 +48,8 @@
         <button class="tab-button is-active" type="button" id="homeTab">Accueil</button>
         <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
         <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
+        <button class="tab-button" type="button" id="prenetTab">Prix nets</button>
+        <button class="tab-button" type="button" id="tarifTab">Tarifs</button>
       </nav>
 
       <main class="app-shell dashboard-shell" id="homeView">
@@ -56,60 +57,51 @@
           <div>
             <p class="step">Accueil</p>
             <h2 id="homeTitle">Tableau de bord commercial</h2>
-            <p>
-              Les indicateurs seront alimentés avec votre prochain fichier de statistiques.
-            </p>
+            <p id="dashboardPeriod">Vue synthétique de votre activité commerciale.</p>
           </div>
           <div class="dashboard-status">
-            <span>Données stats</span>
-            <strong>En attente</strong>
+            <span>Données actualisées</span>
+            <strong id="dashboardUpdatedAt">En attente</strong>
           </div>
         </section>
 
         <section class="dashboard-grid" aria-label="Indicateurs principaux">
           <article class="panel metric-card">
-            <span>Commandes du jour</span>
-            <strong>--</strong>
-            <small>À connecter au fichier stats</small>
+            <span>CA prévisionnel</span>
+            <strong id="metricOrders">--</strong>
+            <small id="metricOrdersNote">Secteur du commercial</small>
           </article>
           <article class="panel metric-card">
-            <span>Chiffre d'affaires HT</span>
-            <strong>--</strong>
-            <small>Jour / semaine / mois</small>
+            <span>Clients actifs</span>
+            <strong id="metricRevenue">--</strong>
+            <small id="metricRevenueNote">Clients avec CA prévisionnel</small>
           </article>
           <article class="panel metric-card">
-            <span>Clients visités</span>
-            <strong>--</strong>
-            <small>Suivi activité terrain</small>
-          </article>
-          <article class="panel metric-card">
-            <span>Panier moyen</span>
-            <strong>--</strong>
-            <small>Montant moyen commande</small>
+            <span>CA moyen / client</span>
+            <strong id="metricClients">--</strong>
+            <small id="metricClientsNote">Valeur moyenne du portefeuille</small>
           </article>
         </section>
 
-        <section class="panel dashboard-panel" aria-labelledby="dashboardNextTitle">
-          <div class="panel-heading">
-            <div>
-              <p class="step">Préparation</p>
-              <h2 id="dashboardNextTitle">Prochains dashboards</h2>
+        <section class="dashboard-main-grid">
+          <article class="panel dashboard-panel dashboard-chart-panel">
+            <div class="panel-heading">
+              <div><p class="step">Territoire</p><h2>CA par département</h2></div>
+              <span class="status-pill" id="trendTotal">--</span>
             </div>
-          </div>
-          <div class="dashboard-placeholder-grid">
-            <article>
-              <strong>Evolution des ventes</strong>
-              <span>Graphique mensuel ou hebdomadaire selon le fichier transmis.</span>
-            </article>
-            <article>
-              <strong>Top clients</strong>
-              <span>Classement par montant, nombre de commandes ou secteur.</span>
-            </article>
-            <article>
-              <strong>Top produits</strong>
-              <span>Références les plus commandées et quantités vendues.</span>
-            </article>
-          </div>
+            <div class="sales-chart" id="salesChart" aria-label="Graphique d'évolution des ventes"></div>
+          </article>
+          <article class="panel dashboard-panel">
+            <div class="panel-heading"><div><p class="step">Pilotage</p><h2>Comparaisons clés</h2></div></div>
+            <div class="goal-list" id="goalList"></div>
+          </article>
+        </section>
+
+        <section class="dashboard-ranking-grid dashboard-ranking-single">
+          <article class="panel dashboard-panel">
+            <div class="panel-heading"><div><p class="step">Classement</p><h2>Top clients</h2></div></div>
+            <div class="dashboard-table-wrap"><table class="dashboard-table"><thead><tr><th>Client</th><th>CA prévisionnel</th></tr></thead><tbody id="topClientsBody"></tbody></table></div>
+          </article>
         </section>
       </main>
 
@@ -217,6 +209,31 @@
       </aside>
       </main>
 
+      <main class="app-shell is-hidden" id="prenetView">
+        <section class="panel prenet-panel" aria-labelledby="prenetTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Tarifs clients</p>
+              <h2 id="prenetTitle">Nouveaux prix nets</h2>
+            </div>
+            <span class="status-pill" id="prenetSector">Secteur</span>
+          </div>
+
+          <div class="prenet-search-block">
+            <label for="prenetClientSearch">Rechercher un client de votre secteur</label>
+            <input id="prenetClientSearch" type="search" autocomplete="off" placeholder="Nom ou code client…" />
+            <div class="suggestions prenet-suggestions" id="prenetClientSuggestions" role="listbox"></div>
+          </div>
+
+          <article class="prenet-result" id="prenetResult" aria-live="polite">
+            <div class="prenet-empty">
+              <strong>Sélectionnez un client</strong>
+              <span>Ses nouveaux prix nets apparaîtront ici, classés par référence.</span>
+            </div>
+          </article>
+        </section>
+      </main>
+
       <main class="app-shell is-hidden" id="historyView">
         <section class="panel history-panel" aria-labelledby="historyTitle">
           <div class="panel-heading">
@@ -234,10 +251,49 @@
           </div>
         </section>
       </main>
+
+      <main class="app-shell is-hidden" id="tarifView">
+        <section class="panel tarif-panel" aria-labelledby="tarifTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Documents commerciaux</p>
+              <h2 id="tarifTitle">Tarifs à envoyer</h2>
+            </div>
+            <span class="status-pill">Envoi par e-mail</span>
+          </div>
+
+          <div class="tarif-grid">
+            <article class="tarif-card">
+              <div class="tarif-icon" aria-hidden="true">%</div>
+              <div class="tarif-card-copy">
+                <span>Tarif client</span>
+                <h3>Tarif 50 + 10</h3>
+                <p>Tarif NET applicable à partir du 1er juillet 2026.</p>
+              </div>
+              <button class="primary-button" type="button" id="selectTarif5010">Envoyer ce tarif</button>
+            </article>
+
+            <form class="tarif-send-form is-hidden" id="tarifSendForm">
+              <div class="tarif-form-heading">
+                <div><span>Document sélectionné</span><strong>Tarif 50 + 10</strong></div>
+                <small>Expéditeur : Schuller – Ne pas répondre</small>
+              </div>
+              <label for="tarifRecipient">Adresse e-mail du client</label>
+              <input id="tarifRecipient" name="recipient" type="email" autocomplete="email" required placeholder="client@entreprise.fr" />
+              <button class="primary-button full" type="submit" id="sendTarifButton">Envoyer le tarif</button>
+              <p class="tarif-send-status" id="tarifSendStatus" role="status"></p>
+              <p class="helper-text">Le client recevra le fichier en pièce jointe avec la mention « Merci de ne pas répondre à ce message ».</p>
+            </form>
+          </div>
+        </section>
+      </main>
     </div>
 
     <datalist id="productRefs"></datalist>
 
+    <script src="stats.js"></script>
+    <script src="prenets.js"></script>
+    <script src="tarifs.js"></script>
     <script src="data.js"></script>
     <script src="script.js"></script>
   </body>

@@ -8,7 +8,7 @@
       content="Interface simple de saisie de commande pour commerciaux terrain."
     />
     <title>Saisie de commande</title>
-    <link rel="stylesheet" href="style.css?v=20260707a" />
+    <link rel="stylesheet" href="style.css?v=20260707b" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -26,6 +26,11 @@
         <label for="loginPassword">
           Mot de passe
           <input id="loginPassword" name="loginPassword" type="password" autocomplete="current-password" required />
+        </label>
+
+        <label class="remember-login" for="rememberLogin">
+          <input id="rememberLogin" type="checkbox" />
+          <span>Rester connecté sur cet ordinateur</span>
         </label>
 
         <p class="login-error" id="loginError" role="alert"></p>
@@ -389,6 +394,6 @@
     <script src="prenets.js"></script>
     <script src="tarifs.js?v=20260701d"></script>
     <script src="data.js"></script>
-    <script src="script.js?v=20260707a"></script>
+    <script src="script.js?v=20260707b"></script>
   </body>
 </html>

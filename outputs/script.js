@@ -64,8 +64,11 @@ const refreshAdminLogs = document.querySelector("#refreshAdminLogs");
 const adminLogBody = document.querySelector("#adminLogBody");
 const adminLogStatus = document.querySelector("#adminLogStatus");
 const adminActivityCount = document.querySelector("#adminActivityCount");
-const adminUserCount = document.querySelector("#adminUserCount");
 const adminOrderCount = document.querySelector("#adminOrderCount");
+const adminDocumentCount = document.querySelector("#adminDocumentCount");
+const adminScopeFilter = document.querySelector("#adminScopeFilter");
+const adminActivityFeed = document.querySelector("#adminActivityFeed");
+const adminTypeSummary = document.querySelector("#adminTypeSummary");
 const resetOrderButton = document.querySelector("#resetOrder");
 const historyList = document.querySelector("#historyList");
 const historyDetail = document.querySelector("#historyDetail");
@@ -83,6 +86,7 @@ const tarifSendStatus = document.querySelector("#tarifSendStatus");
 const sendTarifButton = document.querySelector("#sendTarifButton");
 const selectedTarifName = document.querySelector("#selectedTarifName");
 const dashboardSectorSwitch = document.querySelector("#dashboardSectorSwitch");
+let adminLogsCache = [];
 
 async function postService(parameters) {
   if (!tariffConfig.endpoint) throw new Error("Service indisponible.");
@@ -106,25 +110,92 @@ async function loadAdminLogs() {
   refreshAdminLogs.disabled = true;
   try {
     const result = await postService({ action: "getAdminLogs", token: currentSessionToken });
-    const logs = (result.logs || []).filter((log) => log.userId !== "admin");
-    adminActivityCount.textContent = String(logs.length);
-    adminUserCount.textContent = String(new Set(logs.map((log) => log.userId)).size);
-    adminOrderCount.textContent = String(logs.filter((log) => log.type === "Commande enregistrée").length);
-    adminLogBody.innerHTML = logs.length ? logs.map((log) => `
-      <tr>
-        <td>${escapeHtml(log.date || "-")}</td>
-        <td><strong>${escapeHtml(log.userName || log.userId || "-")}</strong></td>
-        <td>${escapeHtml(log.sectors || "-")}</td>
-        <td><span class="admin-action-badge">${escapeHtml(log.type || "Activité")}</span></td>
-        <td>${escapeHtml(log.detail || "-")}</td>
-      </tr>`).join("") : '<tr><td colspan="5" class="admin-empty">Aucune activité enregistrée pour le moment.</td></tr>';
+    adminLogsCache = (result.logs || []).filter((log) => log.userId !== "admin");
+    renderAdminScopeOptions(adminLogsCache);
+    renderAdminDashboard();
     adminLogStatus.textContent = "À jour";
   } catch (error) {
     adminLogStatus.textContent = "Erreur d’actualisation";
     adminLogBody.innerHTML = '<tr><td colspan="5" class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</td></tr>';
+    adminActivityFeed.innerHTML = '<div class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</div>';
   } finally {
     refreshAdminLogs.disabled = false;
   }
+}
+
+function renderAdminScopeOptions(logs) {
+  const selected = adminScopeFilter.value || "all";
+  const options = [{ value: "all", label: "Tous les commerciaux" }];
+  const users = new Map();
+  const sectors = new Set();
+  logs.forEach((log) => {
+    if (log.userId) users.set(log.userId, log.userName || log.userId);
+    String(log.sectors || "").split("+").map((sector) => sector.trim()).filter(Boolean).forEach((sector) => sectors.add(sector));
+  });
+  [...users.entries()].sort((a, b) => a[1].localeCompare(b[1], "fr")).forEach(([id, name]) => options.push({ value: `user:${id}`, label: name }));
+  [...sectors].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })).forEach((sector) => options.push({ value: `sector:${sector}`, label: sector }));
+  adminScopeFilter.innerHTML = options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join("");
+  adminScopeFilter.value = options.some((option) => option.value === selected) ? selected : "all";
+}
+
+function getFilteredAdminLogs() {
+  const scope = adminScopeFilter.value || "all";
+  if (scope === "all") return adminLogsCache;
+  if (scope.startsWith("user:")) return adminLogsCache.filter((log) => log.userId === scope.slice(5));
+  if (scope.startsWith("sector:")) return adminLogsCache.filter((log) => String(log.sectors || "").includes(scope.slice(7)));
+  return adminLogsCache;
+}
+
+function adminActionClass(type = "") {
+  const cleanType = normalize(type);
+  if (cleanType.includes("commande")) return "is-order";
+  if (cleanType.includes("prix")) return "is-price";
+  if (cleanType.includes("document")) return "is-document";
+  if (cleanType.includes("connexion")) return "is-login";
+  return "is-navigation";
+}
+
+function renderAdminDashboard() {
+  const logs = getFilteredAdminLogs();
+  const counts = logs.reduce((result, log) => {
+    const type = log.type || "Activité";
+    result[type] = (result[type] || 0) + 1;
+    return result;
+  }, {});
+
+  adminActivityCount.textContent = String(logs.length);
+  adminOrderCount.textContent = String(logs.filter((log) => normalize(log.type || "").includes("commande")).length);
+  adminDocumentCount.textContent = String(logs.filter((log) => normalize(log.type || "").includes("document")).length);
+
+  adminTypeSummary.innerHTML = Object.keys(counts).length
+    ? Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([type, count]) => `
+      <div class="admin-type-row">
+        <span class="admin-action-badge ${adminActionClass(type)}">${escapeHtml(type)}</span>
+        <strong>${count}</strong>
+      </div>`).join("")
+    : '<div class="admin-empty">Aucune activité sur ce filtre.</div>';
+
+  adminActivityFeed.innerHTML = logs.length
+    ? logs.slice(0, 40).map((log) => `
+      <article class="admin-feed-item">
+        <div class="admin-feed-top">
+          <span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "Activité")}</span>
+          <small>${escapeHtml(log.date || "-")}</small>
+        </div>
+        <strong>${escapeHtml(log.userName || log.userId || "-")}</strong>
+        <p>${escapeHtml(log.detail || "-")}</p>
+        <small>${escapeHtml(log.sectors || "-")}</small>
+      </article>`).join("")
+    : '<div class="admin-empty">Aucune activité sur ce filtre.</div>';
+
+  adminLogBody.innerHTML = logs.length ? logs.map((log) => `
+    <tr>
+      <td>${escapeHtml(log.date || "-")}</td>
+      <td><strong>${escapeHtml(log.userName || log.userId || "-")}</strong></td>
+      <td>${escapeHtml(log.sectors || "-")}</td>
+      <td><span class="admin-action-badge ${adminActionClass(log.type)}">${escapeHtml(log.type || "Activité")}</span></td>
+      <td>${escapeHtml(log.detail || "-")}</td>
+    </tr>`).join("") : '<tr><td colspan="5" class="admin-empty">Aucune activité enregistrée pour ce filtre.</td></tr>';
 }
 
 function resetTarifForm() {
@@ -268,6 +339,7 @@ function selectPrenetClient(client) {
   const entries = Array.isArray(client.entries) ? [...client.entries] : [];
   entries.sort((a, b) => (a.ref || "").localeCompare(b.ref || "", "fr", { numeric: true }));
   const newEntries = entries.filter((entry) => !normalize(entry.status || "").startsWith("ancien"));
+  recordActivity("Prix nets consultés", `${client.name || "Client"}${client.code ? ` (${client.code})` : ""} - ${newEntries.length} référence(s)`);
 
   prenetResult.innerHTML = `
     <header class="prenet-client-header">
@@ -602,6 +674,7 @@ function selectClient(client) {
   selectedClient = client;
   clientSearch.value = client.name;
   clientSuggestions.classList.remove("is-open");
+  recordActivity("Client sélectionné", `${client.name} (${client.code}) - ${client.sector}`);
   clientStatus.textContent = "Client selectionne";
   clientStatus.classList.add("is-ready");
   selectedClientBox.innerHTML = `
@@ -651,6 +724,8 @@ function setLineReference(id, ref) {
       qty: product && referenceChanged ? defaultQuantityForProduct(product) : line.qty,
     };
   });
+  const product = findProduct(ref);
+  if (product) recordActivity("Référence consultée", `${product.ref} - ${product.name} - ${formatter.format(product.price)}`);
   renderLines();
 }
 
@@ -844,7 +919,9 @@ function storeOrder(order) {
   const orders = getStoredOrders().filter((item) => item.id !== order.id);
   orders.push(order);
   saveStoredOrders(orders);
-  recordActivity("Commande enregistrée", `${order.orderNumber} - ${order.client.name} - ${formatter.format(order.total)}`);
+  const refs = order.lines.slice(0, 8).map((line) => `${line.ref} x${line.qty}`).join(", ");
+  const more = order.lines.length > 8 ? ` + ${order.lines.length - 8} autre(s)` : "";
+  recordActivity("Commande enregistrée", `${order.orderNumber} - ${order.client.name} (${order.client.code}) - ${formatter.format(order.total)} - ${order.lines.length} ligne(s) : ${refs}${more}`);
   activeHistoryOrderId = order.id;
   renderOrderHistory();
 }
@@ -1341,6 +1418,7 @@ prenetTab.addEventListener("click", () => setActiveTab("prenet"));
 tarifTab.addEventListener("click", () => setActiveTab("tarif"));
 adminTab.addEventListener("click", () => setActiveTab("admin"));
 refreshAdminLogs.addEventListener("click", loadAdminLogs);
+adminScopeFilter.addEventListener("change", renderAdminDashboard);
 prenetClientSearch.addEventListener("input", (event) => renderPrenetSuggestions(event.target.value));
 selectTarif5010.addEventListener("click", () => openTarifForm("tarif-50-plus-10"));
 selectTarifBase.addEventListener("click", () => openTarifForm("tarif-de-base"));

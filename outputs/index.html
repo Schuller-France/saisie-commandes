@@ -8,7 +8,7 @@
       content="Interface simple de saisie de commande pour commerciaux terrain."
     />
     <title>Saisie de commande</title>
-    <link rel="stylesheet" href="style.css?v=20260702a" />
+    <link rel="stylesheet" href="style.css?v=20260707a" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -344,18 +344,40 @@
         </section>
       </main>
 
-      <main class="app-shell is-hidden" id="adminView">
+      <main class="app-shell admin-shell is-hidden" id="adminView">
         <section class="panel admin-hero">
-          <div><p class="step">Administration</p><h2>Journal d'activité des commerciaux</h2><p>Connexions, navigation et commandes enregistrées depuis l'activation du suivi.</p></div>
-          <button class="ghost-button" type="button" id="refreshAdminLogs">Actualiser</button>
+          <div>
+            <p class="step">Administration</p>
+            <h2>Dashboard gérant</h2>
+            <p>Filtrez par commercial ou par secteur pour suivre les connexions, commandes, recherches de prix nets et documents envoyés.</p>
+          </div>
+          <div class="admin-actions">
+            <label for="adminScopeFilter">
+              Voir
+              <select id="adminScopeFilter">
+                <option value="all">Tous les commerciaux</option>
+              </select>
+            </label>
+            <button class="ghost-button" type="button" id="refreshAdminLogs">Actualiser</button>
+          </div>
         </section>
         <section class="dashboard-grid admin-metrics" aria-label="Résumé de l'activité">
-          <article class="panel metric-card"><span>Activités affichées</span><strong id="adminActivityCount">0</strong><small>300 dernières actions maximum</small></article>
-          <article class="panel metric-card"><span>Commerciaux actifs</span><strong id="adminUserCount">0</strong><small>Sur la période affichée</small></article>
-          <article class="panel metric-card"><span>Commandes enregistrées</span><strong id="adminOrderCount">0</strong><small>Depuis l'activation du suivi</small></article>
+          <article class="panel metric-card"><span>Activités affichées</span><strong id="adminActivityCount">0</strong><small>Sur le filtre sélectionné</small></article>
+          <article class="panel metric-card"><span>Commandes</span><strong id="adminOrderCount">0</strong><small>Commandes générées</small></article>
+          <article class="panel metric-card"><span>Documents envoyés</span><strong id="adminDocumentCount">0</strong><small>Tarifs et catalogues</small></article>
+        </section>
+        <section class="admin-dashboard-grid">
+          <article class="panel admin-feed-panel">
+            <div class="panel-heading"><div><p class="step">Suivi</p><h2>Activité récente</h2></div><span class="status-pill" id="adminLogStatus">Actualisation…</span></div>
+            <div id="adminActivityFeed" class="admin-activity-feed"></div>
+          </article>
+          <aside class="panel admin-summary-panel">
+            <div class="panel-heading"><div><p class="step">Synthèse</p><h2>Par type</h2></div></div>
+            <div id="adminTypeSummary" class="admin-type-summary"></div>
+          </aside>
         </section>
         <section class="panel admin-log-panel">
-          <div class="panel-heading"><div><p class="step">Suivi</p><h2>Dernières activités</h2></div><span class="status-pill" id="adminLogStatus">Actualisation…</span></div>
+          <div class="panel-heading"><div><p class="step">Détail</p><h2>Table complète</h2></div></div>
           <div class="admin-log-wrap"><table class="admin-log-table"><thead><tr><th>Date</th><th>Commercial</th><th>Secteur</th><th>Action</th><th>Détail</th></tr></thead><tbody id="adminLogBody"></tbody></table></div>
         </section>
       </main>
@@ -367,6 +389,6 @@
     <script src="prenets.js"></script>
     <script src="tarifs.js?v=20260701d"></script>
     <script src="data.js"></script>
-    <script src="script.js?v=20260702a"></script>
+    <script src="script.js?v=20260707a"></script>
   </body>
 </html>

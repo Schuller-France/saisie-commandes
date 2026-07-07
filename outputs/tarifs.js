@@ -20,7 +20,30 @@ window.TARIF_CONFIG = {
     },
   ],
   promotions: [
-    // Ajoute ici les promotions Drive au format :
-    // { id: "promo-exemple", name: "Nom de la promotion", driveFileId: "ID_DU_FICHIER_DRIVE" }
+    {
+      id: "promo-paintstar-pa-2026",
+      name: "426. PAINTSTAR PA 2026",
+      driveFileId: "1JWw0II9yOjtywcahqL8hT_DiBcUXzhPQ",
+    },
+    {
+      id: "promo-easy-mix-sx60-pa-2026",
+      name: "02095 Easy Mix SX60 5+1 PA 2026",
+      driveFileId: "10nYuozZ3j9ND8w3KUmbam8li0X64uYOg",
+    },
+    {
+      id: "promo-46398-pa-2026",
+      name: "46398 PROMO PA 2026",
+      driveFileId: "1q93Y8Nq9GD-bNm0EzJgHb6DzKhRpKrUC",
+    },
+    {
+      id: "promo-cdm-2026-pa",
+      name: "PROMO CDM 2026 PA",
+      driveFileId: "1wYcw-SrUd3Oo06xiaLFK5pgXSRS_rand",
+    },
+    {
+      id: "promo-recharges-camions-offerts-2026",
+      name: "RECHARGES + CAMIONS OFFERTS promo 2026",
+      driveFileId: "1efWTmMsQYhK88MMeX-WgpEAOCeyzZZVX",
+    },
   ],
 };

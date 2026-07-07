@@ -11,6 +11,8 @@ let activeHistoryOrderId = null;
 let selectedTariff = null;
 let activeDashboardSector = null;
 let currentSessionToken = "";
+const sessionStorageKey = "orderEntryUser";
+const rememberedSessionKey = "schullerRememberedSession";
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -32,6 +34,7 @@ const appView = document.querySelector("#appView");
 const loginForm = document.querySelector("#loginForm");
 const loginId = document.querySelector("#loginId");
 const loginPassword = document.querySelector("#loginPassword");
+const rememberLogin = document.querySelector("#rememberLogin");
 const loginError = document.querySelector("#loginError");
 const loginSubmitButton = document.querySelector("#loginSubmitButton");
 const forgotPasswordButton = document.querySelector("#forgotPasswordButton");
@@ -535,11 +538,13 @@ function showLogin() {
   currentSessionToken = "";
   visibleClients = [];
   activeHistoryOrderId = null;
-  sessionStorage.removeItem("orderEntryUser");
+  sessionStorage.removeItem(sessionStorageKey);
+  localStorage.removeItem(rememberedSessionKey);
   loginView.classList.remove("is-hidden");
   appView.classList.add("is-hidden");
   loginId.value = "";
   loginPassword.value = "";
+  rememberLogin.checked = false;
   loginError.textContent = "";
   loginError.className = "login-error";
   closePasswordReset();
@@ -555,7 +560,14 @@ function showApp(user, token = user.token || "") {
   currentUser = { ...user, sectors, sector: sectors[0] || "Secteur", token };
   activeDashboardSector = currentUser.sectors[0] || null;
   visibleClients = getClientsForUser(currentUser);
-  sessionStorage.setItem("orderEntryUser", JSON.stringify(currentUser));
+  const remembered = Boolean(user.remember || rememberLogin.checked);
+  const storedUser = { ...currentUser, remember: remembered };
+  sessionStorage.setItem(sessionStorageKey, JSON.stringify(storedUser));
+  if (remembered) {
+    localStorage.setItem(rememberedSessionKey, JSON.stringify(storedUser));
+  } else {
+    localStorage.removeItem(rememberedSessionKey);
+  }
   sessionLabel.textContent = currentUser.role === "admin" ? "Schuller France - Administration" : `${currentUser.name} - ${currentUser.sectors.join(" + ")}`;
   loginView.classList.add("is-hidden");
   appView.classList.remove("is-hidden");
@@ -587,8 +599,9 @@ async function submitLogin() {
       action: "login",
       identifier: loginId.value.trim(),
       password: loginPassword.value,
+      remember: rememberLogin.checked ? "1" : "",
     });
-    showApp(result.user, result.token);
+    showApp({ ...result.user, remember: rememberLogin.checked }, result.token);
   } catch (error) {
     loginError.textContent = error.message || "Connexion impossible.";
     loginPassword.select();
@@ -656,13 +669,15 @@ async function confirmPasswordReset(event) {
 
 function restoreSession() {
   try {
-    const savedUser = JSON.parse(sessionStorage.getItem("orderEntryUser") || "null");
+    const savedUser = JSON.parse(localStorage.getItem(rememberedSessionKey) || sessionStorage.getItem(sessionStorageKey) || "null");
     if (savedUser?.id) {
+      rememberLogin.checked = Boolean(savedUser.remember);
       showApp(savedUser, savedUser.token || "");
       return;
     }
   } catch (error) {
-    sessionStorage.removeItem("orderEntryUser");
+    sessionStorage.removeItem(sessionStorageKey);
+    localStorage.removeItem(rememberedSessionKey);
   }
 
   loginView.classList.remove("is-hidden");

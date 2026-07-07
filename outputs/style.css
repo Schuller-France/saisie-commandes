@@ -134,6 +134,21 @@ button {
   text-decoration: underline;
 }
 
+.remember-login {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.remember-login input {
+  width: 18px;
+  min-height: 18px;
+  accent-color: var(--red);
+}
+
 .password-reset-form {
   display: grid;
   gap: 18px;

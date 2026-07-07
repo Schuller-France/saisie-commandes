@@ -10,6 +10,7 @@ let visibleClients = [];
 let activeHistoryOrderId = null;
 let selectedTariff = null;
 let activeDashboardSector = null;
+let currentSessionToken = "";
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -52,11 +53,20 @@ const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
 const prenetTab = document.querySelector("#prenetTab");
 const tarifTab = document.querySelector("#tarifTab");
+const adminTab = document.querySelector("#adminTab");
 const homeView = document.querySelector("#homeView");
 const orderView = document.querySelector("#orderView");
 const historyView = document.querySelector("#historyView");
 const prenetView = document.querySelector("#prenetView");
 const tarifView = document.querySelector("#tarifView");
+const adminView = document.querySelector("#adminView");
+const refreshAdminLogs = document.querySelector("#refreshAdminLogs");
+const adminLogBody = document.querySelector("#adminLogBody");
+const adminLogStatus = document.querySelector("#adminLogStatus");
+const adminActivityCount = document.querySelector("#adminActivityCount");
+const adminUserCount = document.querySelector("#adminUserCount");
+const adminOrderCount = document.querySelector("#adminOrderCount");
+const resetOrderButton = document.querySelector("#resetOrder");
 const historyList = document.querySelector("#historyList");
 const historyDetail = document.querySelector("#historyDetail");
 const historyCount = document.querySelector("#historyCount");
@@ -83,6 +93,38 @@ async function postService(parameters) {
   const result = JSON.parse(await response.text());
   if (!result.ok) throw new Error(result.message || "Opération impossible.");
   return result;
+}
+
+function recordActivity(type, detail = "") {
+  if (!currentSessionToken || currentUser?.role === "admin") return;
+  postService({ action: "logActivity", token: currentSessionToken, type, detail }).catch(() => {});
+}
+
+async function loadAdminLogs() {
+  if (currentUser?.role !== "admin") return;
+  adminLogStatus.textContent = "Actualisation…";
+  refreshAdminLogs.disabled = true;
+  try {
+    const result = await postService({ action: "getAdminLogs", token: currentSessionToken });
+    const logs = (result.logs || []).filter((log) => log.userId !== "admin");
+    adminActivityCount.textContent = String(logs.length);
+    adminUserCount.textContent = String(new Set(logs.map((log) => log.userId)).size);
+    adminOrderCount.textContent = String(logs.filter((log) => log.type === "Commande enregistrée").length);
+    adminLogBody.innerHTML = logs.length ? logs.map((log) => `
+      <tr>
+        <td>${escapeHtml(log.date || "-")}</td>
+        <td><strong>${escapeHtml(log.userName || log.userId || "-")}</strong></td>
+        <td>${escapeHtml(log.sectors || "-")}</td>
+        <td><span class="admin-action-badge">${escapeHtml(log.type || "Activité")}</span></td>
+        <td>${escapeHtml(log.detail || "-")}</td>
+      </tr>`).join("") : '<tr><td colspan="5" class="admin-empty">Aucune activité enregistrée pour le moment.</td></tr>';
+    adminLogStatus.textContent = "À jour";
+  } catch (error) {
+    adminLogStatus.textContent = "Erreur d’actualisation";
+    adminLogBody.innerHTML = '<tr><td colspan="5" class="admin-empty">Impossible de charger le journal. Reconnectez-vous.</td></tr>';
+  } finally {
+    refreshAdminLogs.disabled = false;
+  }
 }
 
 function resetTarifForm() {
@@ -134,6 +176,7 @@ async function sendTarif(event) {
     if (!result.ok) throw new Error(result.message || "Envoi impossible");
     tarifSendStatus.textContent = `${selectedTariff.name} envoyé à ${recipient}.`;
     tarifSendStatus.classList.add("is-success");
+    recordActivity("Document envoyé", `${selectedTariff.name} envoyé à ${recipient}`);
     tarifRecipient.value = "";
   } catch (error) {
     tarifSendStatus.textContent = "L’envoi n’a pas pu être effectué. Réessayez dans quelques instants.";
@@ -417,6 +460,7 @@ function openPasswordReset() {
 
 function showLogin() {
   currentUser = null;
+  currentSessionToken = "";
   visibleClients = [];
   activeHistoryOrderId = null;
   sessionStorage.removeItem("orderEntryUser");
@@ -433,15 +477,26 @@ function showLogin() {
   requestAnimationFrame(() => loginId.focus());
 }
 
-function showApp(user) {
+function showApp(user, token = user.token || "") {
   const sectors = Array.isArray(user.sectors) && user.sectors.length ? user.sectors : [user.sector].filter(Boolean);
-  currentUser = { ...user, sectors, sector: sectors[0] || "Secteur" };
+  currentSessionToken = token;
+  currentUser = { ...user, sectors, sector: sectors[0] || "Secteur", token };
   activeDashboardSector = currentUser.sectors[0] || null;
   visibleClients = getClientsForUser(currentUser);
   sessionStorage.setItem("orderEntryUser", JSON.stringify(currentUser));
-  sessionLabel.textContent = `${currentUser.name} - ${currentUser.sectors.join(" + ")}`;
+  sessionLabel.textContent = currentUser.role === "admin" ? "Schuller France - Administration" : `${currentUser.name} - ${currentUser.sectors.join(" + ")}`;
   loginView.classList.add("is-hidden");
   appView.classList.remove("is-hidden");
+
+  const isAdmin = currentUser.role === "admin";
+  [homeTab, orderTab, historyTab, prenetTab, tarifTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  adminTab.classList.toggle("is-hidden", !isAdmin);
+  resetOrderButton.classList.toggle("is-hidden", isAdmin);
+  if (isAdmin) {
+    setActiveTab("admin");
+    return;
+  }
+
   resetOrder();
   renderDashboardSectorSwitch(currentUser);
   renderDashboard(currentUser);
@@ -461,7 +516,7 @@ async function submitLogin() {
       identifier: loginId.value.trim(),
       password: loginPassword.value,
     });
-    showApp(result.user);
+    showApp(result.user, result.token);
   } catch (error) {
     loginError.textContent = error.message || "Connexion impossible.";
     loginPassword.select();
@@ -531,7 +586,7 @@ function restoreSession() {
   try {
     const savedUser = JSON.parse(sessionStorage.getItem("orderEntryUser") || "null");
     if (savedUser?.id) {
-      showApp(savedUser);
+      showApp(savedUser, savedUser.token || "");
       return;
     }
   } catch (error) {
@@ -789,6 +844,7 @@ function storeOrder(order) {
   const orders = getStoredOrders().filter((item) => item.id !== order.id);
   orders.push(order);
   saveStoredOrders(orders);
+  recordActivity("Commande enregistrée", `${order.orderNumber} - ${order.client.name} - ${formatter.format(order.total)}`);
   activeHistoryOrderId = order.id;
   renderOrderHistory();
 }
@@ -911,16 +967,24 @@ function setActiveTab(tabName) {
   const showHistory = tabName === "history";
   const showPrenet = tabName === "prenet";
   const showTarif = tabName === "tarif";
+  const showAdmin = tabName === "admin";
   homeTab.classList.toggle("is-active", showHome);
   orderTab.classList.toggle("is-active", showOrder);
   historyTab.classList.toggle("is-active", showHistory);
   prenetTab.classList.toggle("is-active", showPrenet);
   tarifTab.classList.toggle("is-active", showTarif);
+  adminTab.classList.toggle("is-active", showAdmin);
   homeView.classList.toggle("is-hidden", !showHome);
   orderView.classList.toggle("is-hidden", !showOrder);
   historyView.classList.toggle("is-hidden", !showHistory);
   prenetView.classList.toggle("is-hidden", !showPrenet);
   tarifView.classList.toggle("is-hidden", !showTarif);
+  adminView.classList.toggle("is-hidden", !showAdmin);
+
+  if (!showAdmin && currentUser?.role !== "admin") {
+    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", prenet: "Prix nets", tarif: "Tarifs & Documents" };
+    recordActivity("Onglet consulté", names[tabName] || tabName);
+  }
 
   if (showOrder) {
     requestAnimationFrame(() => clientSearch.focus());
@@ -933,6 +997,8 @@ function setActiveTab(tabName) {
   if (showPrenet) {
     requestAnimationFrame(() => prenetClientSearch.focus());
   }
+
+  if (showAdmin) loadAdminLogs();
 }
 
 function csvValue(value) {
@@ -1273,6 +1339,8 @@ orderTab.addEventListener("click", () => setActiveTab("order"));
 historyTab.addEventListener("click", () => setActiveTab("history"));
 prenetTab.addEventListener("click", () => setActiveTab("prenet"));
 tarifTab.addEventListener("click", () => setActiveTab("tarif"));
+adminTab.addEventListener("click", () => setActiveTab("admin"));
+refreshAdminLogs.addEventListener("click", loadAdminLogs);
 prenetClientSearch.addEventListener("input", (event) => renderPrenetSuggestions(event.target.value));
 selectTarif5010.addEventListener("click", () => openTarifForm("tarif-50-plus-10"));
 selectTarifBase.addEventListener("click", () => openTarifForm("tarif-de-base"));

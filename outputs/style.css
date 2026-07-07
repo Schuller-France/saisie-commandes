@@ -1135,7 +1135,7 @@ h2 {
 
 .history-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 8px;
   width: 100%;
   padding: 13px 16px;
@@ -1143,6 +1143,30 @@ h2 {
   background: var(--white);
   border: 0;
   border-bottom: 1px solid var(--line);
+}
+
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-delete {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--red);
+  border: 1px solid #f1b8bd;
+  border-radius: 999px;
+  background: #fff5f5;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.history-delete:hover {
+  background: var(--red);
+  color: var(--white);
 }
 
 .history-item:hover,
@@ -1407,6 +1431,99 @@ h2 {
 .prenet-badge.is-old {
   color: #6b5a16;
   background: #fff6d8;
+}
+
+.promotion-panel { overflow: hidden; }
+.promotion-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.2fr) auto;
+  gap: 14px;
+  align-items: end;
+  padding: 22px;
+  border-bottom: 1px solid var(--line);
+  background: #fafbfc;
+}
+.promotion-toolbar .tarif-send-status { grid-column: 1 / -1; }
+.promotion-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+  padding: 24px;
+}
+.promotion-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 10px 28px rgba(28, 34, 45, .06);
+}
+.promotion-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+  font-weight: 800;
+}
+.promotion-check input {
+  width: 18px;
+  min-height: 18px;
+  accent-color: var(--red);
+}
+.promotion-preview-thumb {
+  height: 280px;
+  overflow: hidden;
+  background: #f3f4f6;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.promotion-preview-thumb iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.promotion-card-actions {
+  display: flex;
+  gap: 10px;
+}
+.promotion-card-actions .ghost-button,
+.promotion-card-actions .primary-button {
+  flex: 1;
+}
+.promotion-empty {
+  display: grid;
+  gap: 8px;
+  place-items: center;
+  min-height: 220px;
+  color: var(--muted);
+  text-align: center;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--soft);
+}
+.promotion-empty strong { color: var(--dark); font-size: 20px; }
+.promotion-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: rgba(20, 20, 24, .96);
+}
+.promotion-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  color: var(--white);
+}
+.promotion-modal iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--white);
 }
 
 .admin-hero {

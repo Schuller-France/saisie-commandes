@@ -8,7 +8,7 @@
       content="Interface simple de saisie de commande pour commerciaux terrain."
     />
     <title>Saisie de commande</title>
-    <link rel="stylesheet" href="style.css?v=20260707b" />
+    <link rel="stylesheet" href="style.css?v=20260707c" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -89,6 +89,7 @@
         <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
         <button class="tab-button" type="button" id="prenetTab">Prix nets</button>
         <button class="tab-button" type="button" id="tarifTab">Tarifs &amp; Documents</button>
+        <button class="tab-button" type="button" id="promotionTab">Promotion</button>
         <button class="tab-button is-hidden" type="button" id="adminTab">Journal d'activité</button>
       </nav>
 
@@ -282,7 +283,10 @@
               <p class="step">Historique</p>
               <h2 id="historyTitle">Commandes passées</h2>
             </div>
-            <span class="status-pill" id="historyCount">0 commande</span>
+            <div class="history-actions">
+              <span class="status-pill" id="historyCount">0 commande</span>
+              <button class="ghost-button compact" type="button" id="clearHistoryOrders">Effacer mes commandes</button>
+            </div>
           </div>
           <div class="history-layout">
             <div class="history-list" id="historyList"></div>
@@ -349,6 +353,35 @@
         </section>
       </main>
 
+      <main class="app-shell is-hidden" id="promotionView">
+        <section class="panel promotion-panel" aria-labelledby="promotionTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Supports commerciaux</p>
+              <h2 id="promotionTitle">Promotions</h2>
+            </div>
+            <span class="status-pill">Aperçu tablette + envoi e-mail</span>
+          </div>
+
+          <div class="promotion-toolbar">
+            <label for="promotionRecipient">Adresse e-mail du client</label>
+            <input id="promotionRecipient" type="email" autocomplete="email" placeholder="client@entreprise.fr" />
+            <button class="primary-button" type="button" id="sendSelectedPromotions">Envoyer les promotions sélectionnées</button>
+            <p class="tarif-send-status" id="promotionSendStatus" role="status"></p>
+          </div>
+
+          <div class="promotion-grid" id="promotionGrid"></div>
+        </section>
+      </main>
+
+      <div class="promotion-modal is-hidden" id="promotionModal" role="dialog" aria-modal="true" aria-labelledby="promotionModalTitle">
+        <div class="promotion-modal-header">
+          <strong id="promotionModalTitle">Promotion</strong>
+          <button class="ghost-button compact" type="button" id="closePromotionModal">Fermer</button>
+        </div>
+        <iframe id="promotionPreviewFrame" title="Aperçu promotion"></iframe>
+      </div>
+
       <main class="app-shell admin-shell is-hidden" id="adminView">
         <section class="panel admin-hero">
           <div>
@@ -364,6 +397,7 @@
               </select>
             </label>
             <button class="ghost-button" type="button" id="refreshAdminLogs">Actualiser</button>
+            <button class="ghost-button" type="button" id="resetAdminDashboard">Remettre à zéro l'affichage</button>
           </div>
         </section>
         <section class="dashboard-grid admin-metrics" aria-label="Résumé de l'activité">
@@ -392,8 +426,8 @@
 
     <script src="stats.js?v=20260701f"></script>
     <script src="prenets.js"></script>
-    <script src="tarifs.js?v=20260701d"></script>
+    <script src="tarifs.js?v=20260707c"></script>
     <script src="data.js"></script>
-    <script src="script.js?v=20260707b"></script>
+    <script src="script.js?v=20260707c"></script>
   </body>
 </html>

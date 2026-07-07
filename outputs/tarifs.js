@@ -19,4 +19,8 @@ window.TARIF_CONFIG = {
       driveFileId: "1SpC_iOIaQR0hBiViweLTPH5LjCnZi3xj",
     },
   ],
+  promotions: [
+    // Ajoute ici les promotions Drive au format :
+    // { id: "promo-exemple", name: "Nom de la promotion", driveFileId: "ID_DU_FICHIER_DRIVE" }
+  ],
 };

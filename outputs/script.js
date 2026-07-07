@@ -13,6 +13,7 @@ let activeDashboardSector = null;
 let currentSessionToken = "";
 const sessionStorageKey = "orderEntryUser";
 const rememberedSessionKey = "schullerRememberedSession";
+const adminResetKey = "schullerAdminResetAt";
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -56,12 +57,14 @@ const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
 const prenetTab = document.querySelector("#prenetTab");
 const tarifTab = document.querySelector("#tarifTab");
+const promotionTab = document.querySelector("#promotionTab");
 const adminTab = document.querySelector("#adminTab");
 const homeView = document.querySelector("#homeView");
 const orderView = document.querySelector("#orderView");
 const historyView = document.querySelector("#historyView");
 const prenetView = document.querySelector("#prenetView");
 const tarifView = document.querySelector("#tarifView");
+const promotionView = document.querySelector("#promotionView");
 const adminView = document.querySelector("#adminView");
 const refreshAdminLogs = document.querySelector("#refreshAdminLogs");
 const adminLogBody = document.querySelector("#adminLogBody");
@@ -72,10 +75,12 @@ const adminDocumentCount = document.querySelector("#adminDocumentCount");
 const adminScopeFilter = document.querySelector("#adminScopeFilter");
 const adminActivityFeed = document.querySelector("#adminActivityFeed");
 const adminTypeSummary = document.querySelector("#adminTypeSummary");
+const resetAdminDashboard = document.querySelector("#resetAdminDashboard");
 const resetOrderButton = document.querySelector("#resetOrder");
 const historyList = document.querySelector("#historyList");
 const historyDetail = document.querySelector("#historyDetail");
 const historyCount = document.querySelector("#historyCount");
+const clearHistoryOrders = document.querySelector("#clearHistoryOrders");
 const prenetClientSearch = document.querySelector("#prenetClientSearch");
 const prenetClientSuggestions = document.querySelector("#prenetClientSuggestions");
 const prenetResult = document.querySelector("#prenetResult");
@@ -83,6 +88,14 @@ const prenetSector = document.querySelector("#prenetSector");
 const selectTarif5010 = document.querySelector("#selectTarif5010");
 const selectTarifBase = document.querySelector("#selectTarifBase");
 const selectCatalogue2026 = document.querySelector("#selectCatalogue2026");
+const promotionGrid = document.querySelector("#promotionGrid");
+const promotionRecipient = document.querySelector("#promotionRecipient");
+const promotionSendStatus = document.querySelector("#promotionSendStatus");
+const sendSelectedPromotions = document.querySelector("#sendSelectedPromotions");
+const promotionModal = document.querySelector("#promotionModal");
+const promotionModalTitle = document.querySelector("#promotionModalTitle");
+const promotionPreviewFrame = document.querySelector("#promotionPreviewFrame");
+const closePromotionModal = document.querySelector("#closePromotionModal");
 const tarifSendForm = document.querySelector("#tarifSendForm");
 const tarifRecipient = document.querySelector("#tarifRecipient");
 const tarifSendStatus = document.querySelector("#tarifSendStatus");
@@ -143,10 +156,25 @@ function renderAdminScopeOptions(logs) {
 
 function getFilteredAdminLogs() {
   const scope = adminScopeFilter.value || "all";
-  if (scope === "all") return adminLogsCache;
-  if (scope.startsWith("user:")) return adminLogsCache.filter((log) => log.userId === scope.slice(5));
-  if (scope.startsWith("sector:")) return adminLogsCache.filter((log) => String(log.sectors || "").includes(scope.slice(7)));
-  return adminLogsCache;
+  const resetAt = Number(localStorage.getItem(adminResetKey) || 0);
+  const recentLogs = resetAt ? adminLogsCache.filter((log) => parseFrenchDateTime(log.date) >= resetAt) : adminLogsCache;
+  if (scope === "all") return recentLogs;
+  if (scope.startsWith("user:")) return recentLogs.filter((log) => log.userId === scope.slice(5));
+  if (scope.startsWith("sector:")) return recentLogs.filter((log) => String(log.sectors || "").includes(scope.slice(7)));
+  return recentLogs;
+}
+
+function parseFrenchDateTime(value = "") {
+  const match = String(value).match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
+  if (!match) return 0;
+  const [, day, month, year, hour, minute, second] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)).getTime();
+}
+
+function resetAdminLogDisplay() {
+  localStorage.setItem(adminResetKey, String(Date.now()));
+  renderAdminDashboard();
+  adminLogStatus.textContent = "Affichage remis à zéro";
 }
 
 function adminActionClass(type = "") {
@@ -258,6 +286,100 @@ async function sendTarif(event) {
   } finally {
     sendTarifButton.disabled = false;
     sendTarifButton.textContent = "Envoyer le document";
+  }
+}
+
+function getPromotions() {
+  return Array.isArray(tariffConfig.promotions) ? tariffConfig.promotions : [];
+}
+
+function drivePreviewUrl(fileId) {
+  return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`;
+}
+
+function renderPromotions() {
+  const promotions = getPromotions();
+  promotionSendStatus.textContent = "";
+  promotionSendStatus.className = "tarif-send-status";
+  if (!promotions.length) {
+    promotionGrid.innerHTML = `
+      <div class="promotion-empty">
+        <strong>Aucune promotion configurée pour le moment.</strong>
+        <span>Ajoute les PDF dans le Drive, puis indique leurs fichiers dans la configuration pour les afficher ici.</span>
+      </div>`;
+    return;
+  }
+
+  promotionGrid.innerHTML = promotions.map((promotion) => `
+    <article class="promotion-card">
+      <label class="promotion-check">
+        <input type="checkbox" value="${escapeHtml(promotion.id)}" />
+        <span>Sélectionner</span>
+      </label>
+      <div class="promotion-preview-thumb">
+        <iframe src="${escapeHtml(drivePreviewUrl(promotion.driveFileId))}" title="${escapeHtml(promotion.name)}"></iframe>
+      </div>
+      <div class="tarif-card-copy">
+        <span>Promotion</span>
+        <h3>${escapeHtml(promotion.name)}</h3>
+        <p>${escapeHtml(promotion.description || "PDF promotionnel prêt à présenter ou envoyer.")}</p>
+      </div>
+      <div class="promotion-card-actions">
+        <button class="ghost-button compact" type="button" data-preview-promotion="${escapeHtml(promotion.id)}">Aperçu plein écran</button>
+        <button class="primary-button compact" type="button" data-send-promotion="${escapeHtml(promotion.id)}">Envoyer</button>
+      </div>
+    </article>`).join("");
+}
+
+function selectedPromotionIds(forcedId = "") {
+  if (forcedId) return [forcedId];
+  return [...promotionGrid.querySelectorAll(".promotion-check input:checked")].map((input) => input.value);
+}
+
+function openPromotionPreview(promotionId) {
+  const promotion = getPromotions().find((item) => item.id === promotionId);
+  if (!promotion) return;
+  promotionModalTitle.textContent = promotion.name;
+  promotionPreviewFrame.src = drivePreviewUrl(promotion.driveFileId);
+  promotionModal.classList.remove("is-hidden");
+  recordActivity("Promotion consultée", promotion.name);
+}
+
+function closePromotionPreview() {
+  promotionModal.classList.add("is-hidden");
+  promotionPreviewFrame.src = "";
+}
+
+async function sendPromotions(forcedId = "") {
+  promotionSendStatus.className = "tarif-send-status";
+  const recipient = promotionRecipient.value.trim();
+  const ids = selectedPromotionIds(forcedId);
+  if (!promotionRecipient.checkValidity() || !recipient) {
+    promotionSendStatus.textContent = "Saisissez une adresse e-mail valide.";
+    promotionSendStatus.classList.add("is-error");
+    promotionRecipient.focus();
+    return;
+  }
+  if (!ids.length) {
+    promotionSendStatus.textContent = "Sélectionnez au moins une promotion.";
+    promotionSendStatus.classList.add("is-error");
+    return;
+  }
+
+  sendSelectedPromotions.disabled = true;
+  promotionSendStatus.textContent = "Envoi en cours…";
+  try {
+    await postService({ action: "sendDocuments", recipient, documents: ids.join(",") });
+    const names = getPromotions().filter((item) => ids.includes(item.id)).map((item) => item.name).join(", ");
+    promotionSendStatus.textContent = `${ids.length} promotion${ids.length > 1 ? "s" : ""} envoyée${ids.length > 1 ? "s" : ""} à ${recipient}.`;
+    promotionSendStatus.classList.add("is-success");
+    recordActivity("Promotion envoyée", `${names} envoyé à ${recipient}`);
+    promotionGrid.querySelectorAll(".promotion-check input:checked").forEach((input) => { input.checked = false; });
+  } catch (error) {
+    promotionSendStatus.textContent = "L’envoi n’a pas pu être effectué. Vérifiez que les promotions sont bien activées côté Drive.";
+    promotionSendStatus.classList.add("is-error");
+  } finally {
+    sendSelectedPromotions.disabled = false;
   }
 }
 
@@ -573,7 +695,7 @@ function showApp(user, token = user.token || "") {
   appView.classList.remove("is-hidden");
 
   const isAdmin = currentUser.role === "admin";
-  [homeTab, orderTab, historyTab, prenetTab, tarifTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  [homeTab, orderTab, historyTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
   adminTab.classList.toggle("is-hidden", !isAdmin);
   resetOrderButton.classList.toggle("is-hidden", isAdmin);
   if (isAdmin) {
@@ -906,6 +1028,23 @@ function saveStoredOrders(orders) {
   localStorage.setItem("schullerOrders", JSON.stringify(orders));
 }
 
+function deleteStoredOrder(orderId) {
+  saveStoredOrders(getStoredOrders().filter((order) => order.id !== orderId));
+  if (activeHistoryOrderId === orderId) activeHistoryOrderId = null;
+  renderOrderHistory();
+}
+
+function clearCurrentUserOrders() {
+  if (!currentUser) return;
+  const visibleOrders = getVisibleStoredOrders();
+  if (!visibleOrders.length) return;
+  if (!confirm(`Effacer ${visibleOrders.length} commande${visibleOrders.length > 1 ? "s" : ""} de votre historique ?`)) return;
+  const visibleIds = new Set(visibleOrders.map((order) => order.id));
+  saveStoredOrders(getStoredOrders().filter((order) => !visibleIds.has(order.id)));
+  activeHistoryOrderId = null;
+  renderOrderHistory();
+}
+
 function buildOrderSnapshot({ orderNumber, orderDate, note, validLines }) {
   const isoDate = new Date().toISOString();
   return {
@@ -987,11 +1126,16 @@ function renderOrderHistory() {
         <small>${escapeHtml(order.orderNumber)} - ${escapeHtml(order.lines.length)} ligne${order.lines.length > 1 ? "s" : ""}</small>
       </span>
       <span class="history-item-total">${formatter.format(order.total)}</span>
+      <span class="history-delete" title="Effacer cette commande">×</span>
     `;
     button.addEventListener("click", () => {
       activeHistoryOrderId = order.id;
       renderOrderHistory();
       renderOrderDetail(order);
+    });
+    button.querySelector(".history-delete").addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteStoredOrder(order.id);
     });
     historyList.appendChild(button);
   });
@@ -1059,22 +1203,25 @@ function setActiveTab(tabName) {
   const showHistory = tabName === "history";
   const showPrenet = tabName === "prenet";
   const showTarif = tabName === "tarif";
+  const showPromotion = tabName === "promotion";
   const showAdmin = tabName === "admin";
   homeTab.classList.toggle("is-active", showHome);
   orderTab.classList.toggle("is-active", showOrder);
   historyTab.classList.toggle("is-active", showHistory);
   prenetTab.classList.toggle("is-active", showPrenet);
   tarifTab.classList.toggle("is-active", showTarif);
+  promotionTab.classList.toggle("is-active", showPromotion);
   adminTab.classList.toggle("is-active", showAdmin);
   homeView.classList.toggle("is-hidden", !showHome);
   orderView.classList.toggle("is-hidden", !showOrder);
   historyView.classList.toggle("is-hidden", !showHistory);
   prenetView.classList.toggle("is-hidden", !showPrenet);
   tarifView.classList.toggle("is-hidden", !showTarif);
+  promotionView.classList.toggle("is-hidden", !showPromotion);
   adminView.classList.toggle("is-hidden", !showAdmin);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", prenet: "Prix nets", tarif: "Tarifs & Documents" };
+    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotion" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
@@ -1091,6 +1238,8 @@ function setActiveTab(tabName) {
   }
 
   if (showAdmin) loadAdminLogs();
+
+  if (showPromotion) renderPromotions();
 }
 
 function csvValue(value) {
@@ -1431,14 +1580,25 @@ orderTab.addEventListener("click", () => setActiveTab("order"));
 historyTab.addEventListener("click", () => setActiveTab("history"));
 prenetTab.addEventListener("click", () => setActiveTab("prenet"));
 tarifTab.addEventListener("click", () => setActiveTab("tarif"));
+promotionTab.addEventListener("click", () => setActiveTab("promotion"));
 adminTab.addEventListener("click", () => setActiveTab("admin"));
 refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
+resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);
+clearHistoryOrders.addEventListener("click", clearCurrentUserOrders);
 prenetClientSearch.addEventListener("input", (event) => renderPrenetSuggestions(event.target.value));
 selectTarif5010.addEventListener("click", () => openTarifForm("tarif-50-plus-10"));
 selectTarifBase.addEventListener("click", () => openTarifForm("tarif-de-base"));
 selectCatalogue2026.addEventListener("click", () => openTarifForm("catalogue-2026"));
 tarifSendForm.addEventListener("submit", sendTarif);
+sendSelectedPromotions.addEventListener("click", () => sendPromotions());
+promotionGrid.addEventListener("click", (event) => {
+  const previewId = event.target.closest("[data-preview-promotion]")?.dataset.previewPromotion;
+  const sendId = event.target.closest("[data-send-promotion]")?.dataset.sendPromotion;
+  if (previewId) openPromotionPreview(previewId);
+  if (sendId) sendPromotions(sendId);
+});
+closePromotionModal.addEventListener("click", closePromotionPreview);
 logoutButton.addEventListener("click", showLogin);
 loginForm.addEventListener("submit", (event) => {
   event.preventDefault();

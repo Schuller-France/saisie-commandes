@@ -8,7 +8,7 @@
       content="Interface simple de saisie de commande pour commerciaux terrain."
     />
     <title>Saisie de commande</title>
-    <link rel="stylesheet" href="style.css?v=20260708d" />
+    <link rel="stylesheet" href="style.css?v=20260708e" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -87,7 +87,7 @@
         <button class="tab-button is-active" type="button" id="homeTab">Accueil</button>
         <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
         <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
-        <button class="tab-button" type="button" id="notesTab">Prise de notes</button>
+        <button class="tab-button" type="button" id="notesTab">Prise de notes <span class="tab-badge is-hidden" id="notesReminderBadge">0</span></button>
         <button class="tab-button" type="button" id="prenetTab">Prix nets</button>
         <button class="tab-button" type="button" id="tarifTab">Tarifs &amp; Documents</button>
         <button class="tab-button" type="button" id="promotionTab">Promotions</button>
@@ -124,6 +124,17 @@
             <strong id="metricClients">--</strong>
             <small id="metricClientsNote">Valeur moyenne du portefeuille</small>
           </article>
+        </section>
+
+        <section class="panel reminder-home-panel is-hidden" id="homeRemindersPanel" aria-labelledby="homeRemindersTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">À ne pas oublier</p>
+              <h2 id="homeRemindersTitle">Relances clients</h2>
+            </div>
+            <span class="status-pill" id="homeRemindersCount">0 relance</span>
+          </div>
+          <div class="home-reminders-list" id="homeRemindersList"></div>
         </section>
 
         <section class="dashboard-main-grid">
@@ -326,6 +337,15 @@
                 <input id="notesDate" type="date" required />
 
                 <label for="notesText">Note du rendez-vous</label>
+                <div class="quick-note-buttons" aria-label="Modèles de notes rapides">
+                  <button type="button" data-note-template="Promo présentée">Promo présentée</button>
+                  <button type="button" data-note-template="Client intéressé">Client intéressé</button>
+                  <button type="button" data-note-template="À relancer" data-template-reminder="1">À relancer</button>
+                  <button type="button" data-note-template="Commande probable">Commande probable</button>
+                  <button type="button" data-note-template="Pas intéressé">Pas intéressé</button>
+                  <button type="button" data-note-template="Problème tarif">Problème tarif</button>
+                  <button type="button" data-note-template="Besoin catalogue">Besoin catalogue</button>
+                </div>
                 <textarea id="notesText" rows="12" placeholder="Ex. Besoin principal, produits présentés, prochaine action, objection client…" required></textarea>
 
                 <button class="voice-note-button" type="button" id="startVoiceNote">
@@ -333,6 +353,19 @@
                   Dicter la note
                 </button>
                 <p class="voice-note-status" id="voiceNoteStatus" role="status"></p>
+
+                <section class="note-reminder-box">
+                  <label class="note-reminder-toggle" for="noteReminderEnabled">
+                    <input id="noteReminderEnabled" type="checkbox" />
+                    <span>Prévoir une relance client</span>
+                  </label>
+                  <div class="note-reminder-fields" id="noteReminderFields">
+                    <label for="noteReminderDate">Date de relance</label>
+                    <input id="noteReminderDate" type="date" />
+                    <label for="noteReminderText">Motif de la relance</label>
+                    <input id="noteReminderText" type="text" placeholder="Ex. Rappeler pour confirmer la commande promo" />
+                  </div>
+                </section>
 
                 <div class="notes-form-actions">
                   <button class="primary-button" type="submit" id="saveNoteButton">Enregistrer la note</button>
@@ -488,6 +521,6 @@
     <script src="prenets.js"></script>
     <script src="tarifs.js?v=20260708a"></script>
     <script src="data.js"></script>
-    <script src="script.js?v=20260708d"></script>
+    <script src="script.js?v=20260708e"></script>
   </body>
 </html>

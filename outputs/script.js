@@ -60,6 +60,7 @@ const homeTab = document.querySelector("#homeTab");
 const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
 const notesTab = document.querySelector("#notesTab");
+const notesReminderBadge = document.querySelector("#notesReminderBadge");
 const prenetTab = document.querySelector("#prenetTab");
 const tarifTab = document.querySelector("#tarifTab");
 const promotionTab = document.querySelector("#promotionTab");
@@ -121,6 +122,13 @@ const tarifSendStatus = document.querySelector("#tarifSendStatus");
 const sendTarifButton = document.querySelector("#sendTarifButton");
 const selectedTarifName = document.querySelector("#selectedTarifName");
 const dashboardSectorSwitch = document.querySelector("#dashboardSectorSwitch");
+const homeRemindersPanel = document.querySelector("#homeRemindersPanel");
+const homeRemindersCount = document.querySelector("#homeRemindersCount");
+const homeRemindersList = document.querySelector("#homeRemindersList");
+const noteReminderEnabled = document.querySelector("#noteReminderEnabled");
+const noteReminderFields = document.querySelector("#noteReminderFields");
+const noteReminderDate = document.querySelector("#noteReminderDate");
+const noteReminderText = document.querySelector("#noteReminderText");
 let adminLogsCache = [];
 
 async function postService(parameters) {
@@ -577,6 +585,7 @@ function renderDashboard(user) {
     ? topClients.slice(0, 8).map((client) => `<tr><td><strong>${escapeHtml(client.name || "-")}</strong><small>${escapeHtml(client.code || "")}</small></td><td>${escapeHtml(formatter.format(Number(client.revenue) || 0))}</td></tr>`).join("")
     : '<tr><td colspan="2" class="dashboard-empty">Aucune donnée client.</td></tr>';
 
+  renderHomeReminders();
 }
 
 function escapeHtml(value) {
@@ -726,6 +735,7 @@ function showApp(user, token = user.token || "") {
   resetOrder();
   renderDashboardSectorSwitch(currentUser);
   renderDashboard(currentUser);
+  renderHomeReminders();
   renderPrenetEmpty();
   renderNotesEmpty();
   setActiveTab("home");
@@ -1240,6 +1250,111 @@ function formatNoteDate(isoDate) {
   return `${day}/${month}/${year}`;
 }
 
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function reminderStatus(note) {
+  if (!note.reminderDate || note.reminderDone) return "none";
+  const today = getTodayKey();
+  if (note.reminderDate < today) return "late";
+  if (note.reminderDate === today) return "today";
+  return "upcoming";
+}
+
+function getVisibleReminders(includeUpcoming = false) {
+  if (!currentUser) return [];
+  const allowedCodes = new Set(visibleClients.map((client) => client.code));
+  return getStoredNotes()
+    .filter((note) => note.userId === currentUser.id && allowedCodes.has(note.clientCode) && note.reminderDate && !note.reminderDone)
+    .filter((note) => includeUpcoming || reminderStatus(note) === "late" || reminderStatus(note) === "today")
+    .sort((a, b) => {
+      const dateCompare = a.reminderDate.localeCompare(b.reminderDate);
+      if (dateCompare !== 0) return dateCompare;
+      return a.clientName.localeCompare(b.clientName);
+    });
+}
+
+function updateReminderBadge() {
+  const dueCount = getVisibleReminders(false).length;
+  notesReminderBadge.textContent = String(dueCount);
+  notesReminderBadge.classList.toggle("is-hidden", dueCount === 0);
+  notesTab.classList.toggle("has-reminder", dueCount > 0);
+}
+
+function setReminderFieldsEnabled(enabled) {
+  noteReminderEnabled.checked = enabled;
+  noteReminderFields.classList.toggle("is-open", enabled);
+  noteReminderDate.disabled = !enabled;
+  noteReminderText.disabled = !enabled;
+  if (enabled && !noteReminderDate.value) noteReminderDate.value = getTodayKey();
+}
+
+function resetReminderFields() {
+  setReminderFieldsEnabled(false);
+  noteReminderDate.value = "";
+  noteReminderText.value = "";
+}
+
+function findVisibleClientByCode(code) {
+  return visibleClients.find((client) => client.code === code);
+}
+
+function renderHomeReminders() {
+  const reminders = getVisibleReminders(false);
+  updateReminderBadge();
+
+  homeRemindersPanel.classList.toggle("is-hidden", reminders.length === 0);
+  homeRemindersCount.textContent = `${reminders.length} relance${reminders.length > 1 ? "s" : ""}`;
+  if (!reminders.length) {
+    homeRemindersList.innerHTML = "";
+    return;
+  }
+
+  homeRemindersList.innerHTML = reminders
+    .map((note) => {
+      const status = reminderStatus(note);
+      const label = status === "late" ? "En retard" : "Aujourd’hui";
+      return `
+        <article class="home-reminder-card ${status}">
+          <div>
+            <span class="reminder-pill">${label}</span>
+            <strong>${escapeHtml(note.clientName)}</strong>
+            <small>${escapeHtml(formatNoteDate(note.reminderDate))} - ${escapeHtml(note.reminderText || "Relance client")}</small>
+          </div>
+          <div class="home-reminder-actions">
+            <button class="ghost-button compact" type="button" data-open-reminder="${escapeHtml(note.id)}">Voir</button>
+            <button class="primary-button compact" type="button" data-done-reminder="${escapeHtml(note.id)}">Fait</button>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function markReminderDone(noteId) {
+  const notes = getStoredNotes();
+  const index = notes.findIndex((note) => note.id === noteId && note.userId === currentUser?.id);
+  if (index === -1) return;
+  notes[index] = { ...notes[index], reminderDone: true, reminderDoneAt: new Date().toISOString() };
+  saveStoredNotes(notes);
+  recordActivity("Relance client faite", `${notes[index].clientName} (${notes[index].clientCode}) - ${notes[index].reminderText || "Relance client"}`);
+  renderHomeReminders();
+  if (selectedNotesClient?.code === notes[index].clientCode) renderClientNotes();
+}
+
+function openReminderNote(noteId) {
+  const note = getStoredNotes().find((item) => item.id === noteId && item.userId === currentUser?.id);
+  if (!note) return;
+  const client = findVisibleClientByCode(note.clientCode);
+  if (!client) return;
+  selectNotesClient(client);
+  setActiveTab("notes");
+  requestAnimationFrame(() => {
+    document.querySelector(`[data-note-id="${CSS.escape(noteId)}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}
+
 function getVisibleNotesForClient(client = selectedNotesClient) {
   if (!currentUser || !client) return [];
   return getStoredNotes()
@@ -1308,6 +1423,7 @@ function selectNotesClient(client) {
   `;
   notesDate.value = todayInputDate();
   notesText.value = "";
+  resetReminderFields();
   saveNoteButton.textContent = "Enregistrer la note";
   cancelEditNote.classList.add("is-hidden");
   renderClientNotes();
@@ -1327,6 +1443,7 @@ function renderNotesEmpty(message = "Recherchez un client pour afficher ses note
   notesList.innerHTML = `<div class="notes-empty">${escapeHtml(message)}</div>`;
   notesForm.reset();
   notesDate.value = todayInputDate();
+  resetReminderFields();
   saveNoteButton.textContent = "Enregistrer la note";
   cancelEditNote.classList.add("is-hidden");
 }
@@ -1364,6 +1481,15 @@ function renderClientNotes() {
           </div>
         </div>
         <p>${escapeHtml(note.text).replaceAll("\n", "<br>")}</p>
+        ${note.reminderDate ? `
+          <div class="note-reminder ${reminderStatus(note)}">
+            <div>
+              <strong>${note.reminderDone ? "Relance faite" : "Relance prévue"}</strong>
+              <span>${escapeHtml(formatNoteDate(note.reminderDate))} - ${escapeHtml(note.reminderText || "Relance client")}</span>
+            </div>
+            ${!note.reminderDone ? `<button class="primary-button compact" type="button" data-done-reminder="${escapeHtml(note.id)}">Marquer fait</button>` : ""}
+          </div>
+        ` : ""}
       </article>
     `)
     .join("");
@@ -1388,10 +1514,16 @@ function saveClientNote(event) {
   if (editingNoteId) {
     const index = notes.findIndex((note) => note.id === editingNoteId && note.userId === currentUser.id);
     if (index !== -1) {
+      const reminderChanged = notes[index].reminderDate !== (noteReminderEnabled.checked ? noteReminderDate.value : "") ||
+        notes[index].reminderText !== (noteReminderEnabled.checked ? noteReminderText.value.trim() : "");
       notes[index] = {
         ...notes[index],
         date: notesDate.value || todayInputDate(),
         text,
+        reminderDate: noteReminderEnabled.checked ? noteReminderDate.value : "",
+        reminderText: noteReminderEnabled.checked ? noteReminderText.value.trim() : "",
+        reminderDone: noteReminderEnabled.checked ? (reminderChanged ? false : Boolean(notes[index].reminderDone)) : false,
+        reminderDoneAt: noteReminderEnabled.checked && !reminderChanged ? (notes[index].reminderDoneAt || "") : "",
         updatedAt: now,
       };
       recordActivity("Note client modifiée", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
@@ -1406,6 +1538,10 @@ function saveClientNote(event) {
       clientSector: selectedNotesClient.sector,
       date: notesDate.value || todayInputDate(),
       text,
+      reminderDate: noteReminderEnabled.checked ? noteReminderDate.value : "",
+      reminderText: noteReminderEnabled.checked ? noteReminderText.value.trim() : "",
+      reminderDone: false,
+      reminderDoneAt: "",
       createdAt: now,
       updatedAt: now,
     });
@@ -1416,9 +1552,11 @@ function saveClientNote(event) {
   editingNoteId = null;
   notesText.value = "";
   notesDate.value = todayInputDate();
+  resetReminderFields();
   saveNoteButton.textContent = "Enregistrer la note";
   cancelEditNote.classList.add("is-hidden");
   renderClientNotes();
+  renderHomeReminders();
 }
 
 function editClientNote(noteId) {
@@ -1427,6 +1565,13 @@ function editClientNote(noteId) {
   editingNoteId = note.id;
   notesDate.value = note.date;
   notesText.value = note.text;
+  if (note.reminderDate) {
+    setReminderFieldsEnabled(true);
+    noteReminderDate.value = note.reminderDate;
+    noteReminderText.value = note.reminderText || "";
+  } else {
+    resetReminderFields();
+  }
   saveNoteButton.textContent = "Modifier la note";
   cancelEditNote.classList.remove("is-hidden");
   requestAnimationFrame(() => notesText.focus());
@@ -1436,6 +1581,7 @@ function cancelNoteEdit() {
   editingNoteId = null;
   notesText.value = "";
   notesDate.value = todayInputDate();
+  resetReminderFields();
   saveNoteButton.textContent = "Enregistrer la note";
   cancelEditNote.classList.add("is-hidden");
 }
@@ -1448,6 +1594,7 @@ function deleteClientNote(noteId) {
   if (editingNoteId === noteId) cancelNoteEdit();
   recordActivity("Note client supprimée", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${formatNoteDate(note.date)}`);
   renderClientNotes();
+  renderHomeReminders();
 }
 
 function setupVoiceNotes() {
@@ -1940,11 +2087,32 @@ notesClientSearch.addEventListener("input", (event) => renderNotesSuggestions(ev
 notesForm.addEventListener("submit", saveClientNote);
 cancelEditNote.addEventListener("click", cancelNoteEdit);
 startVoiceNote.addEventListener("click", toggleVoiceNote);
+noteReminderEnabled.addEventListener("change", () => setReminderFieldsEnabled(noteReminderEnabled.checked));
+notesForm.addEventListener("click", (event) => {
+  const templateButton = event.target.closest("[data-note-template]");
+  if (!templateButton) return;
+  const text = templateButton.dataset.noteTemplate;
+  const separator = notesText.value.trim() ? "\n" : "";
+  notesText.value = `${notesText.value.trimEnd()}${separator}${text}`;
+  if (templateButton.dataset.templateReminder === "1") {
+    setReminderFieldsEnabled(true);
+    if (!noteReminderText.value.trim()) noteReminderText.value = "Relancer le client";
+  }
+  notesText.focus();
+});
 notesList.addEventListener("click", (event) => {
   const editId = event.target.closest("[data-edit-note]")?.dataset.editNote;
   const deleteId = event.target.closest("[data-delete-note]")?.dataset.deleteNote;
+  const doneId = event.target.closest("[data-done-reminder]")?.dataset.doneReminder;
   if (editId) editClientNote(editId);
   if (deleteId) deleteClientNote(deleteId);
+  if (doneId) markReminderDone(doneId);
+});
+homeRemindersList.addEventListener("click", (event) => {
+  const openId = event.target.closest("[data-open-reminder]")?.dataset.openReminder;
+  const doneId = event.target.closest("[data-done-reminder]")?.dataset.doneReminder;
+  if (openId) openReminderNote(openId);
+  if (doneId) markReminderDone(doneId);
 });
 prenetClientSearch.addEventListener("input", (event) => renderPrenetSuggestions(event.target.value));
 selectTarif5010.addEventListener("click", () => openTarifForm("tarif-50-plus-10"));

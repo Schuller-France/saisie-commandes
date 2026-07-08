@@ -83,7 +83,6 @@ const adminScopeFilter = document.querySelector("#adminScopeFilter");
 const adminActivityFeed = document.querySelector("#adminActivityFeed");
 const adminTypeSummary = document.querySelector("#adminTypeSummary");
 const resetAdminDashboard = document.querySelector("#resetAdminDashboard");
-const resetOrderButton = document.querySelector("#resetOrder");
 const historyList = document.querySelector("#historyList");
 const historyDetail = document.querySelector("#historyDetail");
 const historyCount = document.querySelector("#historyCount");
@@ -438,6 +437,7 @@ function renderPrenetSuggestions(query) {
   const cleanQuery = normalize(query.trim());
   prenetClientSuggestions.innerHTML = "";
   if (!cleanQuery) {
+    renderPrenetEmpty();
     prenetClientSuggestions.classList.remove("is-open");
     return;
   }
@@ -728,7 +728,6 @@ function showApp(user, token = user.token || "") {
   const isAdmin = currentUser.role === "admin";
   [homeTab, orderTab, historyTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
   adminTab.classList.toggle("is-hidden", !isAdmin);
-  resetOrderButton.classList.toggle("is-hidden", isAdmin);
   if (isAdmin) {
     setActiveTab("admin");
     return;
@@ -2138,10 +2137,6 @@ function resetOrder() {
 clientSearch.addEventListener("input", (event) => renderClientSuggestions(event.target.value));
 document.querySelector("#addLine").addEventListener("click", addLine);
 document.querySelector("#generateOrderFiles").addEventListener("click", generateOrderFiles);
-document.querySelector("#resetOrder").addEventListener("click", () => {
-  resetOrder();
-  setActiveTab("order");
-});
 homeTab.addEventListener("click", () => setActiveTab("home"));
 orderTab.addEventListener("click", () => setActiveTab("order"));
 historyTab.addEventListener("click", () => setActiveTab("history"));

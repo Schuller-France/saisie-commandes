@@ -1381,6 +1381,48 @@ h2 {
   left: 30px;
 }
 
+.notes-reminder-focus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 18px 24px 0;
+  padding: 16px;
+  background: #fff5f5;
+  border: 1px solid #f1b8bd;
+  border-left: 6px solid var(--red);
+  border-radius: var(--radius);
+}
+
+.notes-reminder-focus strong,
+.notes-reminder-focus small {
+  display: block;
+}
+
+.notes-reminder-focus strong {
+  margin-top: 6px;
+  font-size: 20px;
+}
+
+.notes-reminder-focus small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.notes-reminder-inbox-header {
+  width: 100%;
+}
+
+.notes-reminder-inbox-list {
+  display: grid;
+  width: 100%;
+  gap: 10px;
+}
+
+.notes-reminder-focus:has(.notes-reminder-inbox-list) {
+  display: grid;
+}
+
 .notes-layout {
   display: grid;
   grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.5fr);
@@ -2067,7 +2109,8 @@ h2 {
   }
 
   .home-reminder-card,
-  .note-reminder {
+  .note-reminder,
+  .notes-reminder-focus {
     align-items: stretch;
     flex-direction: column;
   }

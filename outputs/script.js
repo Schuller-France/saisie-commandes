@@ -1781,6 +1781,21 @@ const departmentMapPositions = {
   "90": [73, 48], "91": [49, 39], "92": [48, 36], "93": [50, 36], "94": [50, 37], "95": [48, 34],
 };
 
+const allowedTourSectorKeys = new Set(["1", "2", "3", "4", "4a", "5", "5a", "6", "7", "8", "9"]);
+
+function getSectorKey(sector) {
+  return normalize(sector || "")
+    .replace(/^secteur\s*/, "")
+    .replace(/^0+/, "")
+    .toLowerCase();
+}
+
+function isAllowedTourClient(client) {
+  const sectorText = normalize(client.sector || "");
+  if (!sectorText || sectorText.includes("belg") || sectorText.includes("purecrea")) return false;
+  return allowedTourSectorKeys.has(getSectorKey(client.sector));
+}
+
 function clientAddressParts(client) {
   return [
     client.deliveryAddress,
@@ -1796,7 +1811,7 @@ function getClientRouteAddress(client) {
 }
 
 function getTourClients() {
-  return [...visibleClients].sort((a, b) => {
+  return visibleClients.filter(isAllowedTourClient).sort((a, b) => {
     const cityCompare = (a.deliveryCity || a.billingCity || "").localeCompare(b.deliveryCity || b.billingCity || "", "fr");
     if (cityCompare !== 0) return cityCompare;
     return (a.name || "").localeCompare(b.name || "", "fr");
@@ -1822,7 +1837,8 @@ function getFilteredTourClients() {
 function getSelectedTourClients() {
   return Array.from(selectedTourCodes)
     .map((code) => visibleClients.find((client) => client.code === code))
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter(isAllowedTourClient);
 }
 
 function getDepartmentFromZip(zip) {
@@ -1998,7 +2014,7 @@ function setActiveTab(tabName) {
   adminView.classList.toggle("is-hidden", !showAdmin);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", notes: "Prise de notes", tour: "Tournée", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", notes: "Prise de notes", tour: "Tournées", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 

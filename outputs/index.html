@@ -8,7 +8,7 @@
       content="Interface simple de saisie de commande pour commerciaux terrain."
     />
     <title>Saisie de commande</title>
-    <link rel="stylesheet" href="style.css?v=20260708a" />
+    <link rel="stylesheet" href="style.css?v=20260708c" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -87,6 +87,7 @@
         <button class="tab-button is-active" type="button" id="homeTab">Accueil</button>
         <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
         <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
+        <button class="tab-button" type="button" id="notesTab">Prise de notes</button>
         <button class="tab-button" type="button" id="prenetTab">Prix nets</button>
         <button class="tab-button" type="button" id="tarifTab">Tarifs &amp; Documents</button>
         <button class="tab-button" type="button" id="promotionTab">Promotions</button>
@@ -297,6 +298,59 @@
         </section>
       </main>
 
+      <main class="app-shell is-hidden notes-shell" id="notesView">
+        <section class="panel notes-panel" aria-labelledby="notesTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Rendez-vous clients</p>
+              <h2 id="notesTitle">Prise de notes</h2>
+            </div>
+            <span class="status-pill" id="notesStatus">Aucun client sélectionné</span>
+          </div>
+
+          <div class="notes-search">
+            <label for="notesClientSearch">Rechercher un client</label>
+            <input id="notesClientSearch" type="search" autocomplete="off" placeholder="Tapez le nom, la ville ou le code client…" />
+            <div class="suggestions notes-suggestions" id="notesClientSuggestions" role="listbox"></div>
+          </div>
+
+          <div class="notes-layout">
+            <aside class="notes-editor">
+              <article class="notes-selected-client" id="notesSelectedClient">
+                <strong>Sélectionnez un client</strong>
+                <span>Choisissez un client en haut pour ajouter ou consulter ses notes de rendez-vous.</span>
+              </article>
+
+              <form class="notes-form" id="notesForm">
+                <label for="notesDate">Date du rendez-vous</label>
+                <input id="notesDate" type="date" required />
+
+                <label for="notesText">Note du rendez-vous</label>
+                <textarea id="notesText" rows="12" placeholder="Ex. Besoin principal, produits présentés, prochaine action, objection client…" required></textarea>
+
+                <div class="notes-form-actions">
+                  <button class="primary-button" type="submit" id="saveNoteButton">Enregistrer la note</button>
+                  <button class="ghost-button compact is-hidden" type="button" id="cancelEditNote">Annuler la modification</button>
+                </div>
+              </form>
+            </aside>
+
+            <section class="notes-history" aria-labelledby="notesHistoryTitle">
+              <div class="notes-history-header">
+                <div>
+                  <p class="step">Historique</p>
+                  <h3 id="notesHistoryTitle">Notes du client</h3>
+                </div>
+                <span class="status-pill" id="notesCount">0 note</span>
+              </div>
+              <div class="notes-list" id="notesList">
+                <div class="notes-empty">Les notes du client sélectionné apparaîtront ici.</div>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+
       <main class="app-shell is-hidden" id="tarifView">
         <section class="panel tarif-panel" aria-labelledby="tarifTitle">
           <div class="panel-heading">
@@ -428,6 +482,6 @@
     <script src="prenets.js"></script>
     <script src="tarifs.js?v=20260708a"></script>
     <script src="data.js"></script>
-    <script src="script.js?v=20260708b"></script>
+    <script src="script.js?v=20260708c"></script>
   </body>
 </html>

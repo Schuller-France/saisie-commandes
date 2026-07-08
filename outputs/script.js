@@ -376,7 +376,7 @@ async function sendPromotions(forcedId = "") {
     recordActivity("Promotion envoyée", `${names} envoyé à ${recipient}`);
     promotionGrid.querySelectorAll(".promotion-check input:checked").forEach((input) => { input.checked = false; });
   } catch (error) {
-    promotionSendStatus.textContent = "L’envoi n’a pas pu être effectué. Vérifiez que les promotions sont bien activées côté Drive.";
+    promotionSendStatus.textContent = error.message || "L’envoi n’a pas pu être effectué. Vérifiez que les promotions sont bien activées côté Drive.";
     promotionSendStatus.classList.add("is-error");
   } finally {
     sendSelectedPromotions.disabled = false;

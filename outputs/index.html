@@ -8,7 +8,7 @@
       content="Interface simple de saisie de commande pour commerciaux terrain."
     />
     <title>Saisie de commande</title>
-    <link rel="stylesheet" href="style.css?v=20260708f" />
+    <link rel="stylesheet" href="style.css?v=20260708h" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -87,6 +87,7 @@
         <button class="tab-button" type="button" id="orderTab">Saisie commande</button>
         <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
         <button class="tab-button" type="button" id="notesTab">Prise de notes <span class="tab-badge is-hidden" id="notesReminderBadge">0</span></button>
+        <button class="tab-button" type="button" id="tourTab">Tournée</button>
         <button class="tab-button" type="button" id="prenetTab">Prix nets</button>
         <button class="tab-button" type="button" id="tarifTab">Tarifs &amp; Documents</button>
         <button class="tab-button" type="button" id="promotionTab">Promotions</button>
@@ -391,6 +392,61 @@
         </section>
       </main>
 
+      <main class="app-shell is-hidden tour-shell" id="tourView">
+        <section class="panel tour-panel" aria-labelledby="tourTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Préparation terrain</p>
+              <h2 id="tourTitle">Tournée clients</h2>
+            </div>
+            <span class="status-pill" id="tourSelectionCount">0 client sélectionné</span>
+          </div>
+
+          <div class="tour-toolbar">
+            <label for="tourSearch">
+              Rechercher un client
+              <input id="tourSearch" type="search" autocomplete="off" placeholder="Nom, ville, code client ou code postal…" />
+            </label>
+            <div class="tour-actions">
+              <button class="primary-button compact" type="button" id="openGoogleMapsRoute">Ouvrir dans Google Maps</button>
+              <button class="ghost-button compact" type="button" id="openWazeRoute">Waze prochain client</button>
+              <button class="ghost-button compact" type="button" id="clearTourSelection">Vider la tournée</button>
+            </div>
+          </div>
+
+          <div class="tour-layout">
+            <section class="tour-map-card" aria-labelledby="tourMapTitle">
+              <div class="tour-map-heading">
+                <div>
+                  <p class="step">Carte</p>
+                  <h3 id="tourMapTitle">Clients du secteur</h3>
+                </div>
+                <small>Carte schématique par code postal</small>
+              </div>
+              <div class="france-map" id="tourMap" aria-label="Carte schématique des clients"></div>
+              <p class="helper-text">Cliquez sur un point ou une fiche client pour l'ajouter à la tournée.</p>
+            </section>
+
+            <aside class="tour-list-panel" aria-labelledby="tourListTitle">
+              <div class="tour-selected-box">
+                <div class="tour-map-heading">
+                  <div>
+                    <p class="step">Itinéraire</p>
+                    <h3>Clients cochés</h3>
+                  </div>
+                </div>
+                <div class="tour-selected-list" id="tourSelectedList"></div>
+              </div>
+              <div class="tour-results-heading">
+                <h3 id="tourListTitle">Liste des clients</h3>
+                <small id="tourResultCount">0 client</small>
+              </div>
+              <div class="tour-client-list" id="tourClientList"></div>
+            </aside>
+          </div>
+        </section>
+      </main>
+
       <main class="app-shell is-hidden" id="tarifView">
         <section class="panel tarif-panel" aria-labelledby="tarifTitle">
           <div class="panel-heading">
@@ -522,6 +578,6 @@
     <script src="prenets.js"></script>
     <script src="tarifs.js?v=20260708a"></script>
     <script src="data.js"></script>
-    <script src="script.js?v=20260708g"></script>
+    <script src="script.js?v=20260708h"></script>
   </body>
 </html>

@@ -1837,16 +1837,44 @@ function hashClientCode(value) {
   return String(value || "").split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
 }
 
-function getClientMapPosition(client) {
+function getClientMapPosition(client, scopeClients = visibleClients) {
   const dept = getDepartmentFromZip(client.deliveryZip || client.billingZip);
   const base = departmentMapPositions[dept] || [50, 52];
+  const sameDepartmentClients = scopeClients.filter((item) => getDepartmentFromZip(item.deliveryZip || item.billingZip) === dept);
+  const index = Math.max(0, sameDepartmentClients.findIndex((item) => item.code === client.code));
+  const count = Math.max(1, sameDepartmentClients.length);
+  const angle = index * 2.399963229728653;
+  const ring = Math.sqrt(index + 1);
+  const radius = Math.min(8.5, 1.6 + count * 0.16);
   const hash = hashClientCode(client.code);
-  const jitterX = ((hash % 7) - 3) * 0.8;
-  const jitterY = (((hash / 7) % 7) - 3) * 0.8;
+  const jitterX = Math.cos(angle) * ring * radius * 0.34 + ((hash % 3) - 1) * 0.35;
+  const jitterY = Math.sin(angle) * ring * radius * 0.26 + (((hash / 5) % 3) - 1) * 0.35;
   return {
     x: Math.max(8, Math.min(92, base[0] + jitterX)),
     y: Math.max(10, Math.min(92, base[1] + jitterY)),
   };
+}
+
+function renderFranceMapBase() {
+  return `
+    <svg class="france-map-svg" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="tourFranceGradient" x1="12" y1="8" x2="88" y2="92" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#ffffff" />
+          <stop offset="1" stop-color="#f2f4f8" />
+        </linearGradient>
+      </defs>
+      <path class="france-map-country" d="M47 5 C58 5 68 10 73 18 C82 18 90 29 84 42 C89 50 97 59 91 72 C83 80 76 91 62 93 C54 89 46 91 39 86 C32 95 19 91 17 78 C9 72 7 59 13 49 C10 39 15 29 24 24 C23 15 34 8 47 5 Z" />
+      <path class="france-map-country corsica" d="M79 76 C83 78 85 84 83 90 C80 88 78 84 79 76 Z" />
+      <path class="france-map-line" d="M23 32 C38 36 48 31 61 39 C72 46 78 58 86 68" />
+      <path class="france-map-line" d="M31 80 C41 65 48 57 58 45 C65 36 69 28 72 18" />
+      <path class="france-map-line" d="M15 51 C31 50 42 52 55 58 C68 63 79 69 91 72" />
+    </svg>
+    <div class="tour-map-label tour-map-label-north">Nord</div>
+    <div class="tour-map-label tour-map-label-west">Ouest</div>
+    <div class="tour-map-label tour-map-label-east">Est</div>
+    <div class="tour-map-label tour-map-label-south">Sud</div>
+  `;
 }
 
 function renderTourPlanner() {
@@ -1890,9 +1918,9 @@ function renderTourPlanner() {
     : `<div class="tour-empty">Aucun client trouvé. Effacez la recherche pour revenir à la liste complète.</div>`;
 
   tourMap.innerHTML = `
-    <div class="france-map-shape" aria-hidden="true">FR</div>
+    ${renderFranceMapBase()}
     ${filteredClients.map((client) => {
-      const position = getClientMapPosition(client);
+      const position = getClientMapPosition(client, filteredClients);
       const selected = selectedTourCodes.has(client.code);
       return `
         <button

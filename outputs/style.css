@@ -194,6 +194,7 @@ button {
 
 .app-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   width: min(1840px, 100%);
   margin: 0 auto;
@@ -214,6 +215,26 @@ button {
   color: var(--white);
   background: var(--dark);
   border-color: var(--dark);
+}
+
+.tab-badge {
+  display: inline-grid;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  padding: 0 6px;
+  place-items: center;
+  color: var(--white);
+  background: var(--red);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.tab-button.has-reminder {
+  border-color: #f1b8bd;
+  box-shadow: 0 0 0 3px rgba(214, 0, 28, 0.08);
 }
 
 .eyebrow,
@@ -338,6 +359,68 @@ h2 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
+}
+
+.reminder-home-panel {
+  margin-bottom: 18px;
+  border-color: #f1b8bd;
+}
+
+.home-reminders-list {
+  display: grid;
+  gap: 12px;
+  padding: 0 22px 22px;
+}
+
+.home-reminder-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--red);
+  border-radius: var(--radius);
+}
+
+.home-reminder-card strong,
+.home-reminder-card small {
+  display: block;
+}
+
+.home-reminder-card strong {
+  margin-top: 6px;
+  font-size: 18px;
+}
+
+.home-reminder-card small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.home-reminder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.reminder-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  color: var(--white);
+  background: var(--red);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.home-reminder-card.today .reminder-pill {
+  background: #20242c;
 }
 
 .metric-card {
@@ -1349,6 +1432,29 @@ h2 {
   line-height: 1.55;
 }
 
+.quick-note-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quick-note-buttons button {
+  min-height: 38px;
+  padding: 0 12px;
+  color: var(--dark);
+  background: #fff5f5;
+  border: 1px solid #f1b8bd;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.quick-note-buttons button:hover {
+  color: var(--white);
+  background: var(--red);
+}
+
 .voice-note-button {
   display: flex;
   align-items: center;
@@ -1399,6 +1505,85 @@ h2 {
   font-size: 13px;
   font-weight: 800;
   line-height: 1.4;
+}
+
+.note-reminder-box {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: #fafbfc;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.note-reminder-toggle {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  margin: 0 !important;
+  cursor: pointer;
+}
+
+.note-reminder-toggle input {
+  width: 18px;
+  height: 18px;
+}
+
+.note-reminder-fields {
+  display: none;
+  gap: 10px;
+}
+
+.note-reminder-fields.is-open {
+  display: grid;
+}
+
+.note-reminder-fields input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.note-reminder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px;
+  background: #fff5f5;
+  border: 1px solid #f1b8bd;
+  border-radius: 14px;
+}
+
+.note-reminder strong,
+.note-reminder span {
+  display: block;
+}
+
+.note-reminder strong {
+  color: var(--red);
+}
+
+.note-reminder span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.note-reminder.today {
+  background: #f4f6f8;
+  border-color: #d8dde3;
+}
+
+.note-reminder.today strong {
+  color: var(--dark);
+}
+
+.note-reminder.none,
+.note-reminder.upcoming {
+  background: #fff;
 }
 
 @keyframes voicePulse {
@@ -1879,6 +2064,16 @@ h2 {
 
   .note-card-header {
     flex-direction: column;
+  }
+
+  .home-reminder-card,
+  .note-reminder {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .home-reminder-actions {
+    justify-content: flex-start;
   }
 
   .prenet-client-header {

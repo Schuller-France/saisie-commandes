@@ -320,7 +320,7 @@ function renderPromotions() {
         <iframe src="${escapeHtml(drivePreviewUrl(promotion.driveFileId))}" title="${escapeHtml(promotion.name)}"></iframe>
       </div>
       <div class="tarif-card-copy">
-        <span>Promotion</span>
+        <span>Promotions</span>
         <h3>${escapeHtml(promotion.name)}</h3>
         <p>${escapeHtml(promotion.description || "PDF promotionnel prêt à présenter ou envoyer.")}</p>
       </div>
@@ -1221,7 +1221,7 @@ function setActiveTab(tabName) {
   adminView.classList.toggle("is-hidden", !showAdmin);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotion" };
+    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 

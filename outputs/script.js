@@ -8,6 +8,8 @@ let lines = [];
 let currentUser = null;
 let visibleClients = [];
 let activeHistoryOrderId = null;
+let selectedNotesClient = null;
+let editingNoteId = null;
 let selectedTariff = null;
 let activeDashboardSector = null;
 let currentSessionToken = "";
@@ -55,6 +57,7 @@ const sessionLabel = document.querySelector("#sessionLabel");
 const homeTab = document.querySelector("#homeTab");
 const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
+const notesTab = document.querySelector("#notesTab");
 const prenetTab = document.querySelector("#prenetTab");
 const tarifTab = document.querySelector("#tarifTab");
 const promotionTab = document.querySelector("#promotionTab");
@@ -62,6 +65,7 @@ const adminTab = document.querySelector("#adminTab");
 const homeView = document.querySelector("#homeView");
 const orderView = document.querySelector("#orderView");
 const historyView = document.querySelector("#historyView");
+const notesView = document.querySelector("#notesView");
 const prenetView = document.querySelector("#prenetView");
 const tarifView = document.querySelector("#tarifView");
 const promotionView = document.querySelector("#promotionView");
@@ -81,6 +85,17 @@ const historyList = document.querySelector("#historyList");
 const historyDetail = document.querySelector("#historyDetail");
 const historyCount = document.querySelector("#historyCount");
 const clearHistoryOrders = document.querySelector("#clearHistoryOrders");
+const notesClientSearch = document.querySelector("#notesClientSearch");
+const notesClientSuggestions = document.querySelector("#notesClientSuggestions");
+const notesStatus = document.querySelector("#notesStatus");
+const notesSelectedClient = document.querySelector("#notesSelectedClient");
+const notesForm = document.querySelector("#notesForm");
+const notesDate = document.querySelector("#notesDate");
+const notesText = document.querySelector("#notesText");
+const saveNoteButton = document.querySelector("#saveNoteButton");
+const cancelEditNote = document.querySelector("#cancelEditNote");
+const notesCount = document.querySelector("#notesCount");
+const notesList = document.querySelector("#notesList");
 const prenetClientSearch = document.querySelector("#prenetClientSearch");
 const prenetClientSuggestions = document.querySelector("#prenetClientSuggestions");
 const prenetResult = document.querySelector("#prenetResult");
@@ -672,6 +687,7 @@ function showLogin() {
   closePasswordReset();
   resetOrder();
   renderPrenetEmpty();
+  renderNotesEmpty();
   resetTarifForm();
   requestAnimationFrame(() => loginId.focus());
 }
@@ -695,7 +711,7 @@ function showApp(user, token = user.token || "") {
   appView.classList.remove("is-hidden");
 
   const isAdmin = currentUser.role === "admin";
-  [homeTab, orderTab, historyTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  [homeTab, orderTab, historyTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
   adminTab.classList.toggle("is-hidden", !isAdmin);
   resetOrderButton.classList.toggle("is-hidden", isAdmin);
   if (isAdmin) {
@@ -707,6 +723,7 @@ function showApp(user, token = user.token || "") {
   renderDashboardSectorSwitch(currentUser);
   renderDashboard(currentUser);
   renderPrenetEmpty();
+  renderNotesEmpty();
   setActiveTab("home");
   renderOrderHistory();
 }
@@ -1197,10 +1214,243 @@ function renderOrderDetail(order) {
   `;
 }
 
+function todayInputDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getStoredNotes() {
+  try {
+    return JSON.parse(localStorage.getItem("schullerClientNotes") || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredNotes(notes) {
+  localStorage.setItem("schullerClientNotes", JSON.stringify(notes));
+}
+
+function formatNoteDate(isoDate) {
+  if (!isoDate) return "";
+  const [year, month, day] = isoDate.slice(0, 10).split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function getVisibleNotesForClient(client = selectedNotesClient) {
+  if (!currentUser || !client) return [];
+  return getStoredNotes()
+    .filter((note) => note.userId === currentUser.id && note.clientCode === client.code)
+    .sort((a, b) => {
+      const dateCompare = b.date.localeCompare(a.date);
+      if (dateCompare !== 0) return dateCompare;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+}
+
+function renderNotesSuggestions(query) {
+  const cleanQuery = normalize(query.trim());
+  notesClientSuggestions.innerHTML = "";
+
+  if (!cleanQuery) {
+    notesClientSuggestions.classList.remove("is-open");
+    return;
+  }
+
+  const matches = visibleClients
+    .filter((client) => {
+      const searchable = [
+        client.code,
+        client.name,
+        client.billingCity,
+        client.billingZip,
+        client.deliveryCity,
+        client.deliveryZip,
+        client.sector,
+      ].join(" ");
+      return normalize(searchable).includes(cleanQuery);
+    })
+    .slice(0, 12);
+
+  if (!matches.length) {
+    notesClientSuggestions.classList.remove("is-open");
+    return;
+  }
+
+  matches.forEach((client) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "suggestion";
+    button.innerHTML = `
+      <strong>${escapeHtml(client.name)}</strong>
+      <span>${escapeHtml(client.code)} - ${escapeHtml(client.billingZip)} ${escapeHtml(client.billingCity)} - ${escapeHtml(client.sector)}</span>
+    `;
+    button.addEventListener("click", () => selectNotesClient(client));
+    notesClientSuggestions.appendChild(button);
+  });
+
+  notesClientSuggestions.classList.add("is-open");
+}
+
+function selectNotesClient(client) {
+  selectedNotesClient = client;
+  editingNoteId = null;
+  notesClientSearch.value = client.name;
+  notesClientSuggestions.classList.remove("is-open");
+  notesStatus.textContent = `${client.name} - ${client.code}`;
+  notesSelectedClient.innerHTML = `
+    <strong>${escapeHtml(client.name)}</strong>
+    <span>${escapeHtml(client.code)} - ${escapeHtml(client.billingZip)} ${escapeHtml(client.billingCity)}</span>
+    <span>${escapeHtml(client.sector)}${client.phone ? ` - ${escapeHtml(client.phone)}` : ""}</span>
+  `;
+  notesDate.value = todayInputDate();
+  notesText.value = "";
+  saveNoteButton.textContent = "Enregistrer la note";
+  cancelEditNote.classList.add("is-hidden");
+  renderClientNotes();
+  recordActivity("Client consulté en notes", `${client.name} (${client.code})`);
+  requestAnimationFrame(() => notesText.focus());
+}
+
+function renderNotesEmpty(message = "Recherchez un client pour afficher ses notes de rendez-vous.") {
+  selectedNotesClient = null;
+  editingNoteId = null;
+  notesStatus.textContent = "Aucun client sélectionné";
+  notesCount.textContent = "0 note";
+  notesSelectedClient.innerHTML = `
+    <strong>Sélectionnez un client</strong>
+    <span>Choisissez un client en haut pour ajouter ou consulter ses notes de rendez-vous.</span>
+  `;
+  notesList.innerHTML = `<div class="notes-empty">${escapeHtml(message)}</div>`;
+  notesForm.reset();
+  notesDate.value = todayInputDate();
+  saveNoteButton.textContent = "Enregistrer la note";
+  cancelEditNote.classList.add("is-hidden");
+}
+
+function renderClientNotes() {
+  const notes = getVisibleNotesForClient();
+  notesCount.textContent = `${notes.length} note${notes.length > 1 ? "s" : ""}`;
+
+  if (!selectedNotesClient) {
+    renderNotesEmpty();
+    return;
+  }
+
+  if (!notes.length) {
+    notesList.innerHTML = `
+      <div class="notes-empty">
+        <strong>Aucune note pour ce client.</strong>
+        <span>Ajoutez le compte-rendu du rendez-vous à gauche.</span>
+      </div>
+    `;
+    return;
+  }
+
+  notesList.innerHTML = notes
+    .map((note) => `
+      <article class="note-card" data-note-id="${escapeHtml(note.id)}">
+        <div class="note-card-header">
+          <div>
+            <span class="note-date">${escapeHtml(formatNoteDate(note.date))}</span>
+            <small>Ajoutée le ${escapeHtml(formatNoteDate(note.createdAt))}</small>
+          </div>
+          <div class="note-actions">
+            <button class="ghost-button compact" type="button" data-edit-note="${escapeHtml(note.id)}">Modifier</button>
+            <button class="history-delete" type="button" data-delete-note="${escapeHtml(note.id)}" title="Supprimer cette note">×</button>
+          </div>
+        </div>
+        <p>${escapeHtml(note.text).replaceAll("\n", "<br>")}</p>
+      </article>
+    `)
+    .join("");
+}
+
+function saveClientNote(event) {
+  event.preventDefault();
+  if (!currentUser || !selectedNotesClient) {
+    notesStatus.textContent = "Sélectionnez un client avant d’enregistrer.";
+    requestAnimationFrame(() => notesClientSearch.focus());
+    return;
+  }
+
+  const text = notesText.value.trim();
+  if (!text) {
+    notesText.focus();
+    return;
+  }
+
+  const notes = getStoredNotes();
+  const now = new Date().toISOString();
+  if (editingNoteId) {
+    const index = notes.findIndex((note) => note.id === editingNoteId && note.userId === currentUser.id);
+    if (index !== -1) {
+      notes[index] = {
+        ...notes[index],
+        date: notesDate.value || todayInputDate(),
+        text,
+        updatedAt: now,
+      };
+      recordActivity("Note client modifiée", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
+    }
+  } else {
+    notes.push({
+      id: `note-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      clientCode: selectedNotesClient.code,
+      clientName: selectedNotesClient.name,
+      clientSector: selectedNotesClient.sector,
+      date: notesDate.value || todayInputDate(),
+      text,
+      createdAt: now,
+      updatedAt: now,
+    });
+    recordActivity("Note client ajoutée", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${text.slice(0, 120)}`);
+  }
+
+  saveStoredNotes(notes);
+  editingNoteId = null;
+  notesText.value = "";
+  notesDate.value = todayInputDate();
+  saveNoteButton.textContent = "Enregistrer la note";
+  cancelEditNote.classList.add("is-hidden");
+  renderClientNotes();
+}
+
+function editClientNote(noteId) {
+  const note = getVisibleNotesForClient().find((item) => item.id === noteId);
+  if (!note) return;
+  editingNoteId = note.id;
+  notesDate.value = note.date;
+  notesText.value = note.text;
+  saveNoteButton.textContent = "Modifier la note";
+  cancelEditNote.classList.remove("is-hidden");
+  requestAnimationFrame(() => notesText.focus());
+}
+
+function cancelNoteEdit() {
+  editingNoteId = null;
+  notesText.value = "";
+  notesDate.value = todayInputDate();
+  saveNoteButton.textContent = "Enregistrer la note";
+  cancelEditNote.classList.add("is-hidden");
+}
+
+function deleteClientNote(noteId) {
+  const note = getVisibleNotesForClient().find((item) => item.id === noteId);
+  if (!note) return;
+  if (!confirm(`Supprimer la note du ${formatNoteDate(note.date)} pour ${selectedNotesClient.name} ?`)) return;
+  saveStoredNotes(getStoredNotes().filter((item) => item.id !== noteId));
+  if (editingNoteId === noteId) cancelNoteEdit();
+  recordActivity("Note client supprimée", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${formatNoteDate(note.date)}`);
+  renderClientNotes();
+}
+
 function setActiveTab(tabName) {
   const showHome = tabName === "home";
   const showOrder = tabName === "order";
   const showHistory = tabName === "history";
+  const showNotes = tabName === "notes";
   const showPrenet = tabName === "prenet";
   const showTarif = tabName === "tarif";
   const showPromotion = tabName === "promotion";
@@ -1208,6 +1458,7 @@ function setActiveTab(tabName) {
   homeTab.classList.toggle("is-active", showHome);
   orderTab.classList.toggle("is-active", showOrder);
   historyTab.classList.toggle("is-active", showHistory);
+  notesTab.classList.toggle("is-active", showNotes);
   prenetTab.classList.toggle("is-active", showPrenet);
   tarifTab.classList.toggle("is-active", showTarif);
   promotionTab.classList.toggle("is-active", showPromotion);
@@ -1215,13 +1466,14 @@ function setActiveTab(tabName) {
   homeView.classList.toggle("is-hidden", !showHome);
   orderView.classList.toggle("is-hidden", !showOrder);
   historyView.classList.toggle("is-hidden", !showHistory);
+  notesView.classList.toggle("is-hidden", !showNotes);
   prenetView.classList.toggle("is-hidden", !showPrenet);
   tarifView.classList.toggle("is-hidden", !showTarif);
   promotionView.classList.toggle("is-hidden", !showPromotion);
   adminView.classList.toggle("is-hidden", !showAdmin);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", notes: "Prise de notes", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
@@ -1231,6 +1483,11 @@ function setActiveTab(tabName) {
 
   if (showHistory) {
     renderOrderHistory();
+  }
+
+  if (showNotes) {
+    if (selectedNotesClient) renderClientNotes();
+    requestAnimationFrame(() => notesClientSearch.focus());
   }
 
   if (showPrenet) {
@@ -1578,6 +1835,7 @@ document.querySelector("#resetOrder").addEventListener("click", () => {
 homeTab.addEventListener("click", () => setActiveTab("home"));
 orderTab.addEventListener("click", () => setActiveTab("order"));
 historyTab.addEventListener("click", () => setActiveTab("history"));
+notesTab.addEventListener("click", () => setActiveTab("notes"));
 prenetTab.addEventListener("click", () => setActiveTab("prenet"));
 tarifTab.addEventListener("click", () => setActiveTab("tarif"));
 promotionTab.addEventListener("click", () => setActiveTab("promotion"));
@@ -1586,6 +1844,15 @@ refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);
 clearHistoryOrders.addEventListener("click", clearCurrentUserOrders);
+notesClientSearch.addEventListener("input", (event) => renderNotesSuggestions(event.target.value));
+notesForm.addEventListener("submit", saveClientNote);
+cancelEditNote.addEventListener("click", cancelNoteEdit);
+notesList.addEventListener("click", (event) => {
+  const editId = event.target.closest("[data-edit-note]")?.dataset.editNote;
+  const deleteId = event.target.closest("[data-delete-note]")?.dataset.deleteNote;
+  if (editId) editClientNote(editId);
+  if (deleteId) deleteClientNote(deleteId);
+});
 prenetClientSearch.addEventListener("input", (event) => renderPrenetSuggestions(event.target.value));
 selectTarif5010.addEventListener("click", () => openTarifForm("tarif-50-plus-10"));
 selectTarifBase.addEventListener("click", () => openTarifForm("tarif-de-base"));
@@ -1627,6 +1894,9 @@ document.addEventListener("click", (event) => {
   }
   if (!event.target.closest(".prenet-search-block")) {
     prenetClientSuggestions.classList.remove("is-open");
+  }
+  if (!event.target.closest(".notes-search")) {
+    notesClientSuggestions.classList.remove("is-open");
   }
 });
 

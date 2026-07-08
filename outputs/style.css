@@ -1349,6 +1349,63 @@ h2 {
   line-height: 1.55;
 }
 
+.voice-note-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  color: var(--white);
+  background: linear-gradient(135deg, var(--red), #9f0015);
+  border: 0;
+  border-radius: 18px;
+  box-shadow: 0 16px 30px rgba(214, 0, 28, 0.22);
+  font-size: 20px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.voice-note-button span {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  font-size: 24px;
+}
+
+.voice-note-button:hover {
+  transform: translateY(-1px);
+}
+
+.voice-note-button.is-listening {
+  background: linear-gradient(135deg, #20242c, #000);
+  animation: voicePulse 1.1s ease-in-out infinite;
+}
+
+.voice-note-button.is-disabled,
+.voice-note-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.voice-note-status {
+  min-height: 22px;
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+@keyframes voicePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(214, 0, 28, 0.32); }
+  50% { box-shadow: 0 0 0 12px rgba(214, 0, 28, 0); }
+}
+
 .notes-form-actions {
   display: flex;
   flex-wrap: wrap;

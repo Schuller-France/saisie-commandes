@@ -1999,47 +1999,100 @@ h2 {
   min-height: 560px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 28% 20%, rgba(231, 0, 19, .08), transparent 28%),
-    radial-gradient(circle at 70% 76%, rgba(231, 0, 19, .10), transparent 26%),
-    linear-gradient(135deg, #f7f8fb, #eef1f5);
+    radial-gradient(circle at 24% 22%, rgba(231, 0, 19, .06), transparent 24%),
+    radial-gradient(circle at 72% 78%, rgba(231, 0, 19, .08), transparent 25%),
+    linear-gradient(135deg, #f8fafc, #eef2f7);
   border: 1px solid var(--line);
   border-radius: 28px;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.75);
 }
 
-.france-map-shape {
+.france-map::before {
+  content: "";
   position: absolute;
-  inset: 8% 14% 8% 12%;
-  display: grid;
-  place-items: center;
-  color: rgba(231, 0, 19, .12);
-  font-size: clamp(90px, 15vw, 190px);
+  inset: 18px;
+  border: 1px dashed rgba(99, 107, 125, .18);
+  border-radius: 22px;
+}
+
+.france-map-svg {
+  position: absolute;
+  inset: 5% 8% 4% 7%;
+  width: 85%;
+  height: 90%;
+  filter: drop-shadow(0 20px 30px rgba(25, 32, 44, .10));
+}
+
+.france-map-country {
+  fill: url(#tourFranceGradient);
+  stroke: rgba(231, 0, 19, .42);
+  stroke-width: 1.15;
+}
+
+.france-map-country.corsica {
+  stroke-width: .8;
+}
+
+.france-map-line {
+  fill: none;
+  stroke: rgba(99, 107, 125, .16);
+  stroke-width: .65;
+  stroke-dasharray: 2.2 2.2;
+}
+
+.tour-map-label {
+  position: absolute;
+  z-index: 1;
+  color: rgba(99, 107, 125, .48);
+  font-size: 11px;
   font-weight: 1000;
-  letter-spacing: -.1em;
-  clip-path: polygon(44% 0, 69% 8%, 88% 28%, 82% 52%, 96% 73%, 71% 94%, 43% 88%, 20% 99%, 10% 72%, 0 53%, 14% 31%, 11% 12%);
-  background: rgba(255,255,255,.74);
-  border: 2px solid rgba(231, 0, 19, .14);
-  border-radius: 36% 42% 38% 48%;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.tour-map-label-north { top: 18px; left: 50%; transform: translateX(-50%); }
+.tour-map-label-west { top: 50%; left: 18px; transform: translateY(-50%) rotate(-90deg); }
+.tour-map-label-east { top: 50%; right: 18px; transform: translateY(-50%) rotate(90deg); }
+.tour-map-label-south { bottom: 18px; left: 50%; transform: translateX(-50%); }
+
+.tour-point::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: inherit;
+  background: rgba(231, 0, 19, .14);
+  opacity: 0;
+  transform: scale(.45);
+  transition: opacity .18s ease, transform .18s ease;
 }
 
 .tour-point {
   position: absolute;
-  z-index: 2;
-  width: 15px;
-  height: 15px;
+  z-index: 3;
+  width: 13px;
+  height: 13px;
   padding: 0;
   transform: translate(-50%, -50%);
-  background: var(--dark);
+  background: #111827;
   border: 3px solid var(--white);
   border-radius: 999px;
-  box-shadow: 0 8px 18px rgba(0,0,0,.22);
+  box-shadow: 0 8px 18px rgba(0,0,0,.20);
   cursor: pointer;
+  transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
 }
 
 .tour-point:hover,
 .tour-point.is-selected {
   background: var(--red);
-  transform: translate(-50%, -50%) scale(1.35);
+  transform: translate(-50%, -50%) scale(1.45);
+  box-shadow: 0 10px 24px rgba(231, 0, 19, .28);
+}
+
+.tour-point:hover::after,
+.tour-point.is-selected::after {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .tour-point span {

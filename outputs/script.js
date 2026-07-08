@@ -16,9 +16,14 @@ let selectedTariff = null;
 let activeDashboardSector = null;
 let currentSessionToken = "";
 let selectedTourCodes = new Set();
+let tourMapInstance = null;
+let tourMarkersLayer = null;
+let tourRouteLayer = null;
+let tourMarkerByCode = new Map();
 const sessionStorageKey = "orderEntryUser";
 const rememberedSessionKey = "schullerRememberedSession";
 const adminResetKey = "schullerAdminResetAt";
+const savedToursStorageKey = "schullerSavedTours";
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -113,6 +118,11 @@ const tourResultCount = document.querySelector("#tourResultCount");
 const openGoogleMapsRoute = document.querySelector("#openGoogleMapsRoute");
 const openWazeRoute = document.querySelector("#openWazeRoute");
 const clearTourSelection = document.querySelector("#clearTourSelection");
+const tourName = document.querySelector("#tourName");
+const savedTourSelect = document.querySelector("#savedTourSelect");
+const saveTourButton = document.querySelector("#saveTourButton");
+const loadTourButton = document.querySelector("#loadTourButton");
+const deleteTourButton = document.querySelector("#deleteTourButton");
 const prenetClientSearch = document.querySelector("#prenetClientSearch");
 const prenetClientSuggestions = document.querySelector("#prenetClientSuggestions");
 const prenetResult = document.querySelector("#prenetResult");
@@ -1871,31 +1881,189 @@ function getClientMapPosition(client, scopeClients = visibleClients) {
   };
 }
 
-function renderFranceMapBase() {
-  return `
-    <svg class="france-map-svg" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-      <defs>
-        <linearGradient id="tourFranceGradient" x1="12" y1="8" x2="88" y2="92" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stop-color="#ffffff" />
-          <stop offset="1" stop-color="#f2f4f8" />
-        </linearGradient>
-      </defs>
-      <path class="france-map-country" d="M47 5 C58 5 68 10 73 18 C82 18 90 29 84 42 C89 50 97 59 91 72 C83 80 76 91 62 93 C54 89 46 91 39 86 C32 95 19 91 17 78 C9 72 7 59 13 49 C10 39 15 29 24 24 C23 15 34 8 47 5 Z" />
-      <path class="france-map-country corsica" d="M79 76 C83 78 85 84 83 90 C80 88 78 84 79 76 Z" />
-      <path class="france-map-line" d="M23 32 C38 36 48 31 61 39 C72 46 78 58 86 68" />
-      <path class="france-map-line" d="M31 80 C41 65 48 57 58 45 C65 36 69 28 72 18" />
-      <path class="france-map-line" d="M15 51 C31 50 42 52 55 58 C68 63 79 69 91 72" />
-    </svg>
-    <div class="tour-map-label tour-map-label-north">Nord</div>
-    <div class="tour-map-label tour-map-label-west">Ouest</div>
-    <div class="tour-map-label tour-map-label-east">Est</div>
-    <div class="tour-map-label tour-map-label-south">Sud</div>
-  `;
+function parseCoordinate(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(String(value).replace(",", "."));
+  return Number.isFinite(number) ? number : null;
+}
+
+function getClientCoordinates(client, scopeClients = visibleClients) {
+  const latitude = parseCoordinate(client.latitude ?? client.lat);
+  const longitude = parseCoordinate(client.longitude ?? client.lng ?? client.lon);
+  if (latitude !== null && longitude !== null) {
+    return { lat: latitude, lng: longitude, precise: true };
+  }
+  const position = getClientMapPosition(client, scopeClients);
+  return {
+    lat: 51.2 - (position.y / 100) * 10.7,
+    lng: -5.2 + (position.x / 100) * 13.7,
+    precise: false,
+  };
+}
+
+function initTourMap() {
+  if (!tourMap) return false;
+  if (!window.L) {
+    tourMap.innerHTML = `<div class="tour-map-unavailable">Carte interactive indisponible. Vérifiez la connexion internet puis rechargez la page.</div>`;
+    return false;
+  }
+  if (tourMapInstance) return true;
+  tourMap.innerHTML = "";
+  tourMapInstance = L.map(tourMap, { scrollWheelZoom: true, preferCanvas: true }).setView([46.7, 2.4], 6);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(tourMapInstance);
+  tourMarkersLayer = L.layerGroup().addTo(tourMapInstance);
+  tourRouteLayer = L.layerGroup().addTo(tourMapInstance);
+  setTimeout(() => tourMapInstance.invalidateSize(), 150);
+  return true;
+}
+
+function renderInteractiveTourMap(clients) {
+  if (!initTourMap()) return;
+  tourMarkersLayer.clearLayers();
+  tourRouteLayer.clearLayers();
+  tourMarkerByCode = new Map();
+  const selectedClients = getSelectedTourClients();
+  const bounds = [];
+  const selectedCoordinates = [];
+
+  clients.forEach((client) => {
+    const coordinates = getClientCoordinates(client, clients);
+    const selected = selectedTourCodes.has(client.code);
+    const marker = L.circleMarker([coordinates.lat, coordinates.lng], {
+      radius: selected ? 8 : 5,
+      color: selected ? "#e70013" : "#111827",
+      weight: selected ? 3 : 2,
+      fillColor: selected ? "#e70013" : "#111827",
+      fillOpacity: selected ? 0.9 : 0.75,
+    }).addTo(tourMarkersLayer);
+    marker.bindTooltip(client.name, { direction: "top", sticky: true });
+    marker.bindPopup(`
+      <strong>${escapeHtml(client.name)}</strong><br>
+      <span>${escapeHtml(client.code)} - ${escapeHtml(client.sector || "")}</span><br>
+      <small>${escapeHtml(getClientRouteAddress(client) || "Adresse incomplète")}</small><br>
+      <small>${coordinates.precise ? "Position GPS" : "Position temporaire à préciser"}</small>
+    `);
+    marker.on("click", () => toggleTourClient(client.code));
+    tourMarkerByCode.set(client.code, marker);
+    bounds.push([coordinates.lat, coordinates.lng]);
+  });
+
+  selectedClients.forEach((client) => {
+    const coordinates = getClientCoordinates(client, clients);
+    selectedCoordinates.push([coordinates.lat, coordinates.lng]);
+  });
+
+  if (selectedCoordinates.length > 1) {
+    L.polyline(selectedCoordinates, { color: "#e70013", weight: 4, opacity: 0.72, dashArray: "8 8" }).addTo(tourRouteLayer);
+  }
+
+  const fitPoints = selectedCoordinates.length ? selectedCoordinates : bounds;
+  if (fitPoints.length === 1) {
+    tourMapInstance.setView(fitPoints[0], 11);
+  } else if (fitPoints.length > 1) {
+    tourMapInstance.fitBounds(fitPoints, { padding: [26, 26], maxZoom: selectedCoordinates.length ? 12 : 8 });
+  }
+}
+
+function getAllSavedTours() {
+  try {
+    return JSON.parse(localStorage.getItem(savedToursStorageKey) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function getCurrentUserSavedTours() {
+  if (!currentUser) return [];
+  const saved = getAllSavedTours();
+  return Array.isArray(saved[currentUser.id]) ? saved[currentUser.id] : [];
+}
+
+function saveCurrentUserTours(tours) {
+  if (!currentUser) return;
+  const saved = getAllSavedTours();
+  saved[currentUser.id] = tours;
+  localStorage.setItem(savedToursStorageKey, JSON.stringify(saved));
+}
+
+function renderSavedTours() {
+  if (!savedTourSelect) return;
+  const tours = getCurrentUserSavedTours();
+  savedTourSelect.innerHTML = tours.length
+    ? `<option value="">Choisir une tournée</option>${tours.map((tour) => `<option value="${escapeHtml(tour.id)}">${escapeHtml(tour.name)} (${tour.codes.length})</option>`).join("")}`
+    : `<option value="">Aucune tournée enregistrée</option>`;
+  loadTourButton.disabled = tours.length === 0;
+  deleteTourButton.disabled = tours.length === 0;
+}
+
+function saveCurrentTour() {
+  const codes = Array.from(selectedTourCodes);
+  if (!codes.length) {
+    alert("Sélectionnez au moins un client avant de sauvegarder une tournée.");
+    return;
+  }
+  const name = tourName.value.trim();
+  if (!name) {
+    alert("Donnez un nom à la tournée avant de la sauvegarder.");
+    tourName.focus();
+    return;
+  }
+  const tours = getCurrentUserSavedTours();
+  const existingIndex = tours.findIndex((tour) => normalize(tour.name) === normalize(name));
+  const payload = {
+    id: existingIndex >= 0 ? tours[existingIndex].id : `tour-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name,
+    codes,
+    updatedAt: new Date().toISOString(),
+    createdAt: existingIndex >= 0 ? tours[existingIndex].createdAt : new Date().toISOString(),
+  };
+  if (existingIndex >= 0) tours[existingIndex] = payload;
+  else tours.push(payload);
+  saveCurrentUserTours(tours.sort((a, b) => a.name.localeCompare(b.name, "fr", { numeric: true })));
+  renderSavedTours();
+  savedTourSelect.value = payload.id;
+  recordActivity("Tournée sauvegardée", `${payload.name} - ${payload.codes.length} client(s)`);
+}
+
+function loadSavedTour() {
+  const id = savedTourSelect.value;
+  const tour = getCurrentUserSavedTours().find((item) => item.id === id);
+  if (!tour) return;
+  const allowedCodes = new Set(getTourClients().map((client) => client.code));
+  selectedTourCodes = new Set(tour.codes.filter((code) => allowedCodes.has(code)));
+  tourName.value = tour.name;
+  renderTourPlanner();
+  recordActivity("Tournée chargée", `${tour.name} - ${selectedTourCodes.size} client(s)`);
+}
+
+function deleteSavedTour() {
+  const id = savedTourSelect.value;
+  const tours = getCurrentUserSavedTours();
+  const tour = tours.find((item) => item.id === id);
+  if (!tour) return;
+  if (!confirm(`Supprimer la tournée "${tour.name}" ?`)) return;
+  saveCurrentUserTours(tours.filter((item) => item.id !== id));
+  savedTourSelect.value = "";
+  renderSavedTours();
+  recordActivity("Tournée supprimée", tour.name);
+}
+
+function focusTourClientOnMap(code) {
+  const client = visibleClients.find((item) => item.code === code);
+  if (!client || !tourMapInstance) return;
+  const coordinates = getClientCoordinates(client, getFilteredTourClients());
+  tourMapInstance.setView([coordinates.lat, coordinates.lng], coordinates.precise ? 15 : 10);
+  tourMarkerByCode.get(code)?.openPopup();
 }
 
 function renderTourPlanner() {
   if (!tourMap || !tourClientList || !tourSelectedList) return;
   const filteredClients = getFilteredTourClients();
+  const allowedCodes = new Set(getTourClients().map((client) => client.code));
+  selectedTourCodes = new Set(Array.from(selectedTourCodes).filter((code) => allowedCodes.has(code)));
   const selectedClients = getSelectedTourClients();
   const selectedCount = selectedClients.length;
   tourSelectionCount.textContent = `${selectedCount} client${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}`;
@@ -1919,7 +2087,7 @@ function renderTourPlanner() {
         const selected = selectedTourCodes.has(client.code);
         const address = getClientRouteAddress(client);
         return `
-          <article class="tour-client-card ${selected ? "is-selected" : ""}" data-tour-card="${escapeHtml(client.code)}">
+          <article class="tour-client-card ${selected ? "is-selected" : ""}" data-tour-card="${escapeHtml(client.code)}" data-tour-toggle="${escapeHtml(client.code)}">
             <label>
               <input type="checkbox" ${selected ? "checked" : ""} data-tour-toggle="${escapeHtml(client.code)}" />
               <span>
@@ -1933,24 +2101,8 @@ function renderTourPlanner() {
       }).join("")
     : `<div class="tour-empty">Aucun client trouvé. Effacez la recherche pour revenir à la liste complète.</div>`;
 
-  tourMap.innerHTML = `
-    ${renderFranceMapBase()}
-    ${filteredClients.map((client) => {
-      const position = getClientMapPosition(client, filteredClients);
-      const selected = selectedTourCodes.has(client.code);
-      return `
-        <button
-          class="tour-point ${selected ? "is-selected" : ""}"
-          type="button"
-          style="left:${position.x}%; top:${position.y}%;"
-          title="${escapeHtml(client.name)}"
-          data-tour-toggle="${escapeHtml(client.code)}"
-        >
-          <span>${escapeHtml(client.name)}</span>
-        </button>
-      `;
-    }).join("")}
-  `;
+  renderInteractiveTourMap(filteredClients);
+  renderSavedTours();
 }
 
 function toggleTourClient(code) {
@@ -1958,6 +2110,7 @@ function toggleTourClient(code) {
   if (selectedTourCodes.has(code)) selectedTourCodes.delete(code);
   else selectedTourCodes.add(code);
   renderTourPlanner();
+  focusTourClientOnMap(code);
 }
 
 function clearTour() {
@@ -2034,7 +2187,10 @@ function setActiveTab(tabName) {
 
   if (showTour) {
     renderTourPlanner();
-    requestAnimationFrame(() => tourSearch.focus());
+    requestAnimationFrame(() => {
+      tourMapInstance?.invalidateSize();
+      tourSearch.focus();
+    });
   }
 
   if (showPrenet) {
@@ -2435,6 +2591,13 @@ tourSelectedList.addEventListener("click", (event) => {
 clearTourSelection.addEventListener("click", clearTour);
 openGoogleMapsRoute.addEventListener("click", openGoogleRoute);
 openWazeRoute.addEventListener("click", openWazeNextClient);
+saveTourButton.addEventListener("click", saveCurrentTour);
+loadTourButton.addEventListener("click", loadSavedTour);
+deleteTourButton.addEventListener("click", deleteSavedTour);
+savedTourSelect.addEventListener("change", () => {
+  const tour = getCurrentUserSavedTours().find((item) => item.id === savedTourSelect.value);
+  if (tour) tourName.value = tour.name;
+});
 homeRemindersList.addEventListener("click", (event) => {
   const openId = event.target.closest("[data-open-reminder]")?.dataset.openReminder;
   const doneId = event.target.closest("[data-done-reminder]")?.dataset.doneReminder;

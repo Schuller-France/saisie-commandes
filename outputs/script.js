@@ -15,6 +15,7 @@ let voiceNoteListening = false;
 let selectedTariff = null;
 let activeDashboardSector = null;
 let currentSessionToken = "";
+let selectedTourCodes = new Set();
 const sessionStorageKey = "orderEntryUser";
 const rememberedSessionKey = "schullerRememberedSession";
 const adminResetKey = "schullerAdminResetAt";
@@ -61,6 +62,7 @@ const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
 const notesTab = document.querySelector("#notesTab");
 const notesReminderBadge = document.querySelector("#notesReminderBadge");
+const tourTab = document.querySelector("#tourTab");
 const prenetTab = document.querySelector("#prenetTab");
 const tarifTab = document.querySelector("#tarifTab");
 const promotionTab = document.querySelector("#promotionTab");
@@ -69,6 +71,7 @@ const homeView = document.querySelector("#homeView");
 const orderView = document.querySelector("#orderView");
 const historyView = document.querySelector("#historyView");
 const notesView = document.querySelector("#notesView");
+const tourView = document.querySelector("#tourView");
 const prenetView = document.querySelector("#prenetView");
 const tarifView = document.querySelector("#tarifView");
 const promotionView = document.querySelector("#promotionView");
@@ -101,6 +104,15 @@ const saveNoteButton = document.querySelector("#saveNoteButton");
 const cancelEditNote = document.querySelector("#cancelEditNote");
 const notesCount = document.querySelector("#notesCount");
 const notesList = document.querySelector("#notesList");
+const tourSearch = document.querySelector("#tourSearch");
+const tourMap = document.querySelector("#tourMap");
+const tourClientList = document.querySelector("#tourClientList");
+const tourSelectedList = document.querySelector("#tourSelectedList");
+const tourSelectionCount = document.querySelector("#tourSelectionCount");
+const tourResultCount = document.querySelector("#tourResultCount");
+const openGoogleMapsRoute = document.querySelector("#openGoogleMapsRoute");
+const openWazeRoute = document.querySelector("#openWazeRoute");
+const clearTourSelection = document.querySelector("#clearTourSelection");
 const prenetClientSearch = document.querySelector("#prenetClientSearch");
 const prenetClientSuggestions = document.querySelector("#prenetClientSuggestions");
 const prenetResult = document.querySelector("#prenetResult");
@@ -726,7 +738,7 @@ function showApp(user, token = user.token || "") {
   appView.classList.remove("is-hidden");
 
   const isAdmin = currentUser.role === "admin";
-  [homeTab, orderTab, historyTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  [homeTab, orderTab, historyTab, notesTab, tourTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
   adminTab.classList.toggle("is-hidden", !isAdmin);
   if (isAdmin) {
     setActiveTab("admin");
@@ -739,6 +751,8 @@ function showApp(user, token = user.token || "") {
   renderHomeReminders();
   renderPrenetEmpty();
   renderNotesEmpty();
+  selectedTourCodes = new Set();
+  renderTourPlanner();
   setActiveTab("home");
   renderOrderHistory();
 }
@@ -1754,11 +1768,184 @@ function toggleVoiceNote() {
   }
 }
 
+const departmentMapPositions = {
+  "01": [67, 55], "02": [58, 28], "03": [56, 55], "04": [70, 76], "05": [73, 73], "06": [79, 78], "07": [64, 69], "08": [64, 25], "09": [49, 84], "10": [59, 35],
+  "11": [55, 84], "12": [52, 72], "13": [68, 82], "14": [35, 34], "15": [53, 66], "16": [37, 63], "17": [33, 62], "18": [52, 50], "19": [48, 67],
+  "21": [62, 49], "22": [24, 43], "23": [50, 61], "24": [42, 68], "25": [72, 51], "26": [64, 68], "27": [41, 33], "28": [45, 40], "29": [18, 44],
+  "30": [62, 78], "31": [48, 86], "32": [43, 81], "33": [36, 73], "34": [57, 82], "35": [27, 42], "36": [48, 55], "37": [42, 51], "38": [69, 65], "39": [70, 55],
+  "40": [36, 80], "41": [45, 48], "42": [59, 62], "43": [57, 67], "44": [28, 52], "45": [49, 45], "46": [48, 73], "47": [41, 76], "48": [57, 73], "49": [33, 51],
+  "50": [31, 33], "51": [60, 31], "52": [63, 40], "53": [32, 45], "54": [70, 35], "55": [66, 34], "56": [22, 50], "57": [73, 33], "58": [56, 51], "59": [56, 19],
+  "60": [51, 31], "61": [37, 39], "62": [52, 21], "63": [55, 61], "64": [38, 86], "65": [44, 87], "66": [55, 90], "67": [78, 37], "68": [78, 44], "69": [63, 61],
+  "70": [70, 47], "71": [61, 55], "72": [38, 46], "73": [73, 65], "74": [75, 60], "75": [49, 36], "76": [43, 28], "77": [54, 37], "78": [47, 37], "79": [36, 58],
+  "80": [51, 25], "81": [51, 81], "82": [47, 78], "83": [73, 82], "84": [66, 78], "85": [29, 58], "86": [39, 56], "87": [45, 61], "88": [72, 42], "89": [57, 44],
+  "90": [73, 48], "91": [49, 39], "92": [48, 36], "93": [50, 36], "94": [50, 37], "95": [48, 34],
+};
+
+function clientAddressParts(client) {
+  return [
+    client.deliveryAddress,
+    `${client.deliveryZip || ""} ${client.deliveryCity || ""}`.trim(),
+  ].filter((part) => part && !normalize(part).includes("none"));
+}
+
+function getClientRouteAddress(client) {
+  const parts = clientAddressParts(client);
+  if (!parts.length) return "";
+  const country = /belg|belgi|bruxelles|brussel|herentals|anvers|antwerp/i.test(parts.join(" ")) ? "Belgique" : "France";
+  return [...parts, country].join(", ");
+}
+
+function getTourClients() {
+  return [...visibleClients].sort((a, b) => {
+    const cityCompare = (a.deliveryCity || a.billingCity || "").localeCompare(b.deliveryCity || b.billingCity || "", "fr");
+    if (cityCompare !== 0) return cityCompare;
+    return (a.name || "").localeCompare(b.name || "", "fr");
+  });
+}
+
+function getFilteredTourClients() {
+  const query = normalize(tourSearch?.value || "");
+  const clients = getTourClients();
+  if (!query) return clients;
+  return clients.filter((client) => normalize([
+    client.code,
+    client.name,
+    client.billingCity,
+    client.billingZip,
+    client.deliveryCity,
+    client.deliveryZip,
+    client.deliveryAddress,
+    client.sector,
+  ].join(" ")).includes(query));
+}
+
+function getSelectedTourClients() {
+  return Array.from(selectedTourCodes)
+    .map((code) => visibleClients.find((client) => client.code === code))
+    .filter(Boolean);
+}
+
+function getDepartmentFromZip(zip) {
+  const cleanZip = String(zip || "").trim().toUpperCase();
+  if (/^2A/.test(cleanZip)) return "2A";
+  if (/^2B/.test(cleanZip)) return "2B";
+  const match = cleanZip.match(/\d{2}/);
+  return match ? match[0] : "";
+}
+
+function hashClientCode(value) {
+  return String(value || "").split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+}
+
+function getClientMapPosition(client) {
+  const dept = getDepartmentFromZip(client.deliveryZip || client.billingZip);
+  const base = departmentMapPositions[dept] || [50, 52];
+  const hash = hashClientCode(client.code);
+  const jitterX = ((hash % 7) - 3) * 0.8;
+  const jitterY = (((hash / 7) % 7) - 3) * 0.8;
+  return {
+    x: Math.max(8, Math.min(92, base[0] + jitterX)),
+    y: Math.max(10, Math.min(92, base[1] + jitterY)),
+  };
+}
+
+function renderTourPlanner() {
+  if (!tourMap || !tourClientList || !tourSelectedList) return;
+  const filteredClients = getFilteredTourClients();
+  const selectedClients = getSelectedTourClients();
+  const selectedCount = selectedClients.length;
+  tourSelectionCount.textContent = `${selectedCount} client${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}`;
+  tourResultCount.textContent = `${filteredClients.length} client${filteredClients.length > 1 ? "s" : ""}`;
+  openGoogleMapsRoute.disabled = selectedCount === 0;
+  openWazeRoute.disabled = selectedCount === 0;
+  clearTourSelection.disabled = selectedCount === 0;
+
+  tourSelectedList.innerHTML = selectedClients.length
+    ? selectedClients.map((client, index) => `
+        <article class="tour-route-item">
+          <strong>${index + 1}. ${escapeHtml(client.name)}</strong>
+          <span>${escapeHtml(getClientRouteAddress(client) || "Adresse incomplète")}</span>
+          <button class="tour-remove" type="button" title="Retirer" data-tour-toggle="${escapeHtml(client.code)}">×</button>
+        </article>
+      `).join("")
+    : `<div class="tour-empty">Cochez les clients à visiter. Ils apparaîtront ici dans l'ordre de sélection.</div>`;
+
+  tourClientList.innerHTML = filteredClients.length
+    ? filteredClients.map((client) => {
+        const selected = selectedTourCodes.has(client.code);
+        const address = getClientRouteAddress(client);
+        return `
+          <article class="tour-client-card ${selected ? "is-selected" : ""}" data-tour-card="${escapeHtml(client.code)}">
+            <label>
+              <input type="checkbox" ${selected ? "checked" : ""} data-tour-toggle="${escapeHtml(client.code)}" />
+              <span>
+                <strong>${escapeHtml(client.name)}</strong>
+                <small>${escapeHtml(client.code)} - ${escapeHtml(client.deliveryZip || client.billingZip || "")} ${escapeHtml(client.deliveryCity || client.billingCity || "")}</small>
+              </span>
+            </label>
+            <em>${escapeHtml(address || "Adresse incomplète")}</em>
+          </article>
+        `;
+      }).join("")
+    : `<div class="tour-empty">Aucun client trouvé. Effacez la recherche pour revenir à la liste complète.</div>`;
+
+  tourMap.innerHTML = `
+    <div class="france-map-shape" aria-hidden="true">FR</div>
+    ${filteredClients.map((client) => {
+      const position = getClientMapPosition(client);
+      const selected = selectedTourCodes.has(client.code);
+      return `
+        <button
+          class="tour-point ${selected ? "is-selected" : ""}"
+          type="button"
+          style="left:${position.x}%; top:${position.y}%;"
+          title="${escapeHtml(client.name)}"
+          data-tour-toggle="${escapeHtml(client.code)}"
+        >
+          <span>${escapeHtml(client.name)}</span>
+        </button>
+      `;
+    }).join("")}
+  `;
+}
+
+function toggleTourClient(code) {
+  if (!code) return;
+  if (selectedTourCodes.has(code)) selectedTourCodes.delete(code);
+  else selectedTourCodes.add(code);
+  renderTourPlanner();
+}
+
+function clearTour() {
+  selectedTourCodes = new Set();
+  renderTourPlanner();
+}
+
+function openGoogleRoute() {
+  const routeClients = getSelectedTourClients().filter((client) => getClientRouteAddress(client)).slice(0, 10);
+  if (!routeClients.length) return;
+  const addresses = routeClients.map(getClientRouteAddress);
+  const destination = addresses[addresses.length - 1];
+  const waypoints = addresses.slice(0, -1).join("|");
+  const url = `https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=${encodeURIComponent(destination)}${waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : ""}`;
+  recordActivity("Tournée Google Maps ouverte", `${routeClients.length} client(s) - ${routeClients.map((client) => client.name).join(", ")}`);
+  window.open(url, "_blank", "noopener");
+}
+
+function openWazeNextClient() {
+  const client = getSelectedTourClients().find((item) => getClientRouteAddress(item));
+  if (!client) return;
+  const url = `https://waze.com/ul?q=${encodeURIComponent(getClientRouteAddress(client))}&navigate=yes`;
+  recordActivity("Tournée Waze ouverte", `${client.name} (${client.code})`);
+  window.open(url, "_blank", "noopener");
+}
+
 function setActiveTab(tabName) {
   const showHome = tabName === "home";
   const showOrder = tabName === "order";
   const showHistory = tabName === "history";
   const showNotes = tabName === "notes";
+  const showTour = tabName === "tour";
   const showPrenet = tabName === "prenet";
   const showTarif = tabName === "tarif";
   const showPromotion = tabName === "promotion";
@@ -1767,6 +1954,7 @@ function setActiveTab(tabName) {
   orderTab.classList.toggle("is-active", showOrder);
   historyTab.classList.toggle("is-active", showHistory);
   notesTab.classList.toggle("is-active", showNotes);
+  tourTab.classList.toggle("is-active", showTour);
   prenetTab.classList.toggle("is-active", showPrenet);
   tarifTab.classList.toggle("is-active", showTarif);
   promotionTab.classList.toggle("is-active", showPromotion);
@@ -1775,13 +1963,14 @@ function setActiveTab(tabName) {
   orderView.classList.toggle("is-hidden", !showOrder);
   historyView.classList.toggle("is-hidden", !showHistory);
   notesView.classList.toggle("is-hidden", !showNotes);
+  tourView.classList.toggle("is-hidden", !showTour);
   prenetView.classList.toggle("is-hidden", !showPrenet);
   tarifView.classList.toggle("is-hidden", !showTarif);
   promotionView.classList.toggle("is-hidden", !showPromotion);
   adminView.classList.toggle("is-hidden", !showAdmin);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", notes: "Prise de notes", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", notes: "Prise de notes", tour: "Tournée", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
@@ -1797,6 +1986,11 @@ function setActiveTab(tabName) {
     if (selectedNotesClient) renderClientNotes();
     else renderNotesReminderInbox();
     requestAnimationFrame(() => notesClientSearch.focus());
+  }
+
+  if (showTour) {
+    renderTourPlanner();
+    requestAnimationFrame(() => tourSearch.focus());
   }
 
   if (showPrenet) {
@@ -2141,6 +2335,7 @@ homeTab.addEventListener("click", () => setActiveTab("home"));
 orderTab.addEventListener("click", () => setActiveTab("order"));
 historyTab.addEventListener("click", () => setActiveTab("history"));
 notesTab.addEventListener("click", () => setActiveTab("notes"));
+tourTab.addEventListener("click", () => setActiveTab("tour"));
 prenetTab.addEventListener("click", () => setActiveTab("prenet"));
 tarifTab.addEventListener("click", () => setActiveTab("tarif"));
 promotionTab.addEventListener("click", () => setActiveTab("promotion"));
@@ -2180,6 +2375,22 @@ notesReminderFocus.addEventListener("click", (event) => {
   if (openId) openReminderNote(openId);
   if (doneId) markReminderDone(doneId);
 });
+tourSearch.addEventListener("input", renderTourPlanner);
+tourClientList.addEventListener("click", (event) => {
+  const code = event.target.closest("[data-tour-toggle]")?.dataset.tourToggle;
+  if (code) toggleTourClient(code);
+});
+tourMap.addEventListener("click", (event) => {
+  const code = event.target.closest("[data-tour-toggle]")?.dataset.tourToggle;
+  if (code) toggleTourClient(code);
+});
+tourSelectedList.addEventListener("click", (event) => {
+  const code = event.target.closest("[data-tour-toggle]")?.dataset.tourToggle;
+  if (code) toggleTourClient(code);
+});
+clearTourSelection.addEventListener("click", clearTour);
+openGoogleMapsRoute.addEventListener("click", openGoogleRoute);
+openWazeRoute.addEventListener("click", openWazeNextClient);
 homeRemindersList.addEventListener("click", (event) => {
   const openId = event.target.closest("[data-open-reminder]")?.dataset.openReminder;
   const doneId = event.target.closest("[data-done-reminder]")?.dataset.doneReminder;

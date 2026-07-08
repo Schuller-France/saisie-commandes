@@ -10,6 +10,8 @@ let visibleClients = [];
 let activeHistoryOrderId = null;
 let selectedNotesClient = null;
 let editingNoteId = null;
+let voiceRecognition = null;
+let voiceNoteListening = false;
 let selectedTariff = null;
 let activeDashboardSector = null;
 let currentSessionToken = "";
@@ -92,6 +94,8 @@ const notesSelectedClient = document.querySelector("#notesSelectedClient");
 const notesForm = document.querySelector("#notesForm");
 const notesDate = document.querySelector("#notesDate");
 const notesText = document.querySelector("#notesText");
+const startVoiceNote = document.querySelector("#startVoiceNote");
+const voiceNoteStatus = document.querySelector("#voiceNoteStatus");
 const saveNoteButton = document.querySelector("#saveNoteButton");
 const cancelEditNote = document.querySelector("#cancelEditNote");
 const notesCount = document.querySelector("#notesCount");
@@ -1446,6 +1450,94 @@ function deleteClientNote(noteId) {
   renderClientNotes();
 }
 
+function setupVoiceNotes() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    startVoiceNote.disabled = true;
+    startVoiceNote.classList.add("is-disabled");
+    voiceNoteStatus.textContent = "Dictée vocale non disponible sur ce navigateur.";
+    return;
+  }
+
+  voiceRecognition = new SpeechRecognition();
+  voiceRecognition.lang = "fr-FR";
+  voiceRecognition.continuous = true;
+  voiceRecognition.interimResults = true;
+
+  voiceRecognition.addEventListener("start", () => {
+    voiceNoteListening = true;
+    startVoiceNote.classList.add("is-listening");
+    startVoiceNote.innerHTML = '<span aria-hidden="true">🔴</span> Arrêter la dictée';
+    voiceNoteStatus.textContent = "J’écoute… parlez clairement, le texte s’ajoute à la note.";
+  });
+
+  voiceRecognition.addEventListener("result", (event) => {
+    let finalText = "";
+    let interimText = "";
+    for (let index = event.resultIndex; index < event.results.length; index++) {
+      const transcript = event.results[index][0].transcript.trim();
+      if (event.results[index].isFinal) {
+        finalText += transcript + " ";
+      } else {
+        interimText += transcript + " ";
+      }
+    }
+
+    if (finalText) {
+      const separator = notesText.value.trim() ? "\n" : "";
+      notesText.value = `${notesText.value.trimEnd()}${separator}${finalText.trim()}`;
+      notesText.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    voiceNoteStatus.textContent = interimText ? `En cours : ${interimText.trim()}` : "J’écoute…";
+  });
+
+  voiceRecognition.addEventListener("end", () => {
+    voiceNoteListening = false;
+    startVoiceNote.classList.remove("is-listening");
+    startVoiceNote.innerHTML = '<span aria-hidden="true">🎙️</span> Dicter la note';
+    if (voiceNoteStatus.textContent.startsWith("En cours")) {
+      voiceNoteStatus.textContent = "Dictée terminée. Relisez puis enregistrez la note.";
+    } else if (!voiceNoteStatus.textContent.includes("non disponible")) {
+      voiceNoteStatus.textContent = "Dictée arrêtée. Vous pouvez relire puis enregistrer.";
+    }
+  });
+
+  voiceRecognition.addEventListener("error", (event) => {
+    voiceNoteListening = false;
+    startVoiceNote.classList.remove("is-listening");
+    startVoiceNote.innerHTML = '<span aria-hidden="true">🎙️</span> Dicter la note';
+    const messages = {
+      "not-allowed": "Micro refusé. Autorisez le micro dans Chrome pour utiliser la dictée.",
+      "no-speech": "Je n’ai pas entendu de voix. Réessayez en parlant plus près de la tablette.",
+      "audio-capture": "Aucun micro détecté sur cet appareil.",
+      network: "La dictée vocale a besoin d’une connexion internet.",
+    };
+    voiceNoteStatus.textContent = messages[event.error] || "La dictée vocale s’est arrêtée. Réessayez.";
+  });
+}
+
+function toggleVoiceNote() {
+  if (!voiceRecognition) {
+    voiceNoteStatus.textContent = "Dictée vocale non disponible sur ce navigateur.";
+    return;
+  }
+  if (!selectedNotesClient) {
+    voiceNoteStatus.textContent = "Sélectionnez d’abord un client avant de dicter une note.";
+    notesClientSearch.focus();
+    return;
+  }
+  if (voiceNoteListening) {
+    voiceRecognition.stop();
+    return;
+  }
+  try {
+    voiceRecognition.start();
+    recordActivity("Dictée vocale lancée", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
+  } catch {
+    voiceNoteStatus.textContent = "La dictée est déjà en cours.";
+  }
+}
+
 function setActiveTab(tabName) {
   const showHome = tabName === "home";
   const showOrder = tabName === "order";
@@ -1847,6 +1939,7 @@ clearHistoryOrders.addEventListener("click", clearCurrentUserOrders);
 notesClientSearch.addEventListener("input", (event) => renderNotesSuggestions(event.target.value));
 notesForm.addEventListener("submit", saveClientNote);
 cancelEditNote.addEventListener("click", cancelNoteEdit);
+startVoiceNote.addEventListener("click", toggleVoiceNote);
 notesList.addEventListener("click", (event) => {
   const editId = event.target.closest("[data-edit-note]")?.dataset.editNote;
   const deleteId = event.target.closest("[data-delete-note]")?.dataset.deleteNote;
@@ -1900,4 +1993,5 @@ document.addEventListener("click", (event) => {
   }
 });
 
+setupVoiceNotes();
 restoreSession();

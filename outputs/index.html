@@ -8,7 +8,7 @@
       content="Interface simple de saisie de commande pour commerciaux terrain."
     />
     <title>Saisie de commande</title>
-    <link rel="stylesheet" href="style.css?v=20260708c" />
+    <link rel="stylesheet" href="style.css?v=20260708d" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -328,6 +328,12 @@
                 <label for="notesText">Note du rendez-vous</label>
                 <textarea id="notesText" rows="12" placeholder="Ex. Besoin principal, produits présentés, prochaine action, objection client…" required></textarea>
 
+                <button class="voice-note-button" type="button" id="startVoiceNote">
+                  <span aria-hidden="true">🎙️</span>
+                  Dicter la note
+                </button>
+                <p class="voice-note-status" id="voiceNoteStatus" role="status"></p>
+
                 <div class="notes-form-actions">
                   <button class="primary-button" type="submit" id="saveNoteButton">Enregistrer la note</button>
                   <button class="ghost-button compact is-hidden" type="button" id="cancelEditNote">Annuler la modification</button>
@@ -482,6 +488,6 @@
     <script src="prenets.js"></script>
     <script src="tarifs.js?v=20260708a"></script>
     <script src="data.js"></script>
-    <script src="script.js?v=20260708c"></script>
+    <script src="script.js?v=20260708d"></script>
   </body>
 </html>

@@ -91,6 +91,7 @@ const adminScopeFilter = document.querySelector("#adminScopeFilter");
 const adminActivityFeed = document.querySelector("#adminActivityFeed");
 const adminTypeSummary = document.querySelector("#adminTypeSummary");
 const resetAdminDashboard = document.querySelector("#resetAdminDashboard");
+const adminOpenTourButton = document.querySelector("#adminOpenTourButton");
 const historyList = document.querySelector("#historyList");
 const historyDetail = document.querySelector("#historyDetail");
 const historyCount = document.querySelector("#historyCount");
@@ -1900,12 +1901,7 @@ function getClientCoordinates(client, scopeClients = visibleClients) {
   if (latitude !== null && longitude !== null) {
     return { lat: latitude, lng: longitude, precise: true };
   }
-  const position = getClientMapPosition(client, scopeClients);
-  return {
-    lat: 51.2 - (position.y / 100) * 10.7,
-    lng: -5.2 + (position.x / 100) * 13.7,
-    precise: false,
-  };
+  return null;
 }
 
 function initTourMap() {
@@ -1938,6 +1934,7 @@ function renderInteractiveTourMap(clients) {
 
   clients.forEach((client) => {
     const coordinates = getClientCoordinates(client, clients);
+    if (!coordinates) return;
     const selected = selectedTourCodes.has(client.code);
     const marker = L.circleMarker([coordinates.lat, coordinates.lng], {
       radius: selected ? 8 : 5,
@@ -1951,7 +1948,7 @@ function renderInteractiveTourMap(clients) {
       <strong>${escapeHtml(client.name)}</strong><br>
       <span>${escapeHtml(client.code)} - ${escapeHtml(client.sector || "")}</span><br>
       <small>${escapeHtml(getClientRouteAddress(client) || "Adresse incomplète")}</small><br>
-      <small>${coordinates.precise ? "Position GPS" : "Position temporaire à préciser"}</small>
+      <small>Position GPS vérifiée</small>
     `);
     marker.on("click", () => toggleTourClient(client.code));
     tourMarkerByCode.set(client.code, marker);
@@ -1960,6 +1957,7 @@ function renderInteractiveTourMap(clients) {
 
   selectedClients.forEach((client) => {
     const coordinates = getClientCoordinates(client, clients);
+    if (!coordinates) return;
     selectedCoordinates.push([coordinates.lat, coordinates.lng]);
   });
 
@@ -2062,7 +2060,8 @@ function focusTourClientOnMap(code) {
   const client = visibleClients.find((item) => item.code === code);
   if (!client || !tourMapInstance) return;
   const coordinates = getClientCoordinates(client, getFilteredTourClients());
-  tourMapInstance.setView([coordinates.lat, coordinates.lng], coordinates.precise ? 15 : 10);
+  if (!coordinates) return;
+  tourMapInstance.setView([coordinates.lat, coordinates.lng], 15);
   tourMarkerByCode.get(code)?.openPopup();
 }
 
@@ -2073,11 +2072,12 @@ function renderTourPlanner() {
   selectedTourCodes = new Set(Array.from(selectedTourCodes).filter((code) => allowedCodes.has(code)));
   const selectedClients = getSelectedTourClients();
   const selectedCount = selectedClients.length;
+  const mappedCount = filteredClients.filter((client) => getClientCoordinates(client)).length;
   if (tourMapTitle) {
     tourMapTitle.textContent = currentUser?.role === "admin" ? "Tous les clients France" : "Clients du secteur";
   }
   tourSelectionCount.textContent = `${selectedCount} client${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}`;
-  tourResultCount.textContent = `${filteredClients.length} client${filteredClients.length > 1 ? "s" : ""}`;
+  tourResultCount.textContent = `${filteredClients.length} client${filteredClients.length > 1 ? "s" : ""} · ${mappedCount} sur la carte`;
   openGoogleMapsRoute.disabled = selectedCount === 0;
   openWazeRoute.disabled = selectedCount === 0;
   clearTourSelection.disabled = selectedCount === 0;
@@ -2096,6 +2096,7 @@ function renderTourPlanner() {
     ? filteredClients.map((client) => {
         const selected = selectedTourCodes.has(client.code);
         const address = getClientRouteAddress(client);
+        const hasGps = Boolean(getClientCoordinates(client));
         return `
           <article class="tour-client-card ${selected ? "is-selected" : ""}" data-tour-card="${escapeHtml(client.code)}" data-tour-toggle="${escapeHtml(client.code)}">
             <label>
@@ -2105,7 +2106,7 @@ function renderTourPlanner() {
                 <small>${escapeHtml(client.code)} - ${escapeHtml(client.deliveryZip || client.billingZip || "")} ${escapeHtml(client.deliveryCity || client.billingCity || "")}</small>
               </span>
             </label>
-            <em>${escapeHtml(address || "Adresse incomplète")}</em>
+            <em>${escapeHtml(address || "Adresse incomplète")}${hasGps ? "" : " · GPS à corriger"}</em>
           </article>
         `;
       }).join("")
@@ -2553,6 +2554,7 @@ adminTab.addEventListener("click", () => setActiveTab("admin"));
 refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);
+adminOpenTourButton.addEventListener("click", () => setActiveTab("tour"));
 clearHistoryOrders.addEventListener("click", clearCurrentUserOrders);
 notesClientSearch.addEventListener("input", (event) => renderNotesSuggestions(event.target.value));
 notesForm.addEventListener("submit", saveClientNote);

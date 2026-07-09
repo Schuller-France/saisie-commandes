@@ -115,6 +115,7 @@ const tourClientList = document.querySelector("#tourClientList");
 const tourSelectedList = document.querySelector("#tourSelectedList");
 const tourSelectionCount = document.querySelector("#tourSelectionCount");
 const tourResultCount = document.querySelector("#tourResultCount");
+const tourMapTitle = document.querySelector("#tourMapTitle");
 const openGoogleMapsRoute = document.querySelector("#openGoogleMapsRoute");
 const openWazeRoute = document.querySelector("#openWazeRoute");
 const clearTourSelection = document.querySelector("#clearTourSelection");
@@ -682,6 +683,9 @@ function renderClientSuggestions(query) {
 }
 
 function getClientsForUser(user) {
+  if (user?.role === "admin") {
+    return allClients.filter(isAllowedTourClient);
+  }
   const allowedSectors = new Set((user.sectors || [user.sector]).map(normalize));
   return allClients.filter((client) => allowedSectors.has(normalize(client.sector)));
 }
@@ -748,9 +752,12 @@ function showApp(user, token = user.token || "") {
   appView.classList.remove("is-hidden");
 
   const isAdmin = currentUser.role === "admin";
-  [homeTab, orderTab, historyTab, notesTab, tourTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  [homeTab, orderTab, historyTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
+  tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);
   if (isAdmin) {
+    selectedTourCodes = new Set();
+    renderTourPlanner();
     setActiveTab("admin");
     return;
   }
@@ -2066,6 +2073,9 @@ function renderTourPlanner() {
   selectedTourCodes = new Set(Array.from(selectedTourCodes).filter((code) => allowedCodes.has(code)));
   const selectedClients = getSelectedTourClients();
   const selectedCount = selectedClients.length;
+  if (tourMapTitle) {
+    tourMapTitle.textContent = currentUser?.role === "admin" ? "Tous les clients France" : "Clients du secteur";
+  }
   tourSelectionCount.textContent = `${selectedCount} client${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}`;
   tourResultCount.textContent = `${filteredClients.length} client${filteredClients.length > 1 ? "s" : ""}`;
   openGoogleMapsRoute.disabled = selectedCount === 0;

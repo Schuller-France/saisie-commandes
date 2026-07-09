@@ -62,6 +62,7 @@ const confirmResetButton = document.querySelector("#confirmResetButton");
 const backToLoginButton = document.querySelector("#backToLoginButton");
 const logoutButton = document.querySelector("#logoutButton");
 const sessionLabel = document.querySelector("#sessionLabel");
+const appTabs = document.querySelector(".app-tabs");
 const homeTab = document.querySelector("#homeTab");
 const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
@@ -691,6 +692,16 @@ function getClientsForUser(user) {
   return allClients.filter((client) => allowedSectors.has(normalize(client.sector)));
 }
 
+function arrangeTabsForUser(user) {
+  if (!appTabs) return;
+  if (user?.role === "admin") {
+    appTabs.insertBefore(adminTab, tourTab);
+    return;
+  }
+  appTabs.insertBefore(tourTab, prenetTab);
+  appTabs.appendChild(adminTab);
+}
+
 function closePasswordReset() {
   passwordResetCard.classList.add("is-hidden");
   loginForm.classList.remove("is-hidden");
@@ -753,6 +764,7 @@ function showApp(user, token = user.token || "") {
   appView.classList.remove("is-hidden");
 
   const isAdmin = currentUser.role === "admin";
+  arrangeTabsForUser(currentUser);
   [homeTab, orderTab, historyTab, notesTab, prenetTab, tarifTab, promotionTab].forEach((tab) => tab.classList.toggle("is-hidden", isAdmin));
   tourTab.classList.remove("is-hidden");
   adminTab.classList.toggle("is-hidden", !isAdmin);

@@ -9,7 +9,7 @@
     />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260709f" />
+    <link rel="stylesheet" href="style.css?v=20260709g" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -89,6 +89,7 @@
         <button class="tab-button" type="button" id="historyTab">Commandes passées</button>
         <button class="tab-button" type="button" id="notesTab">Prise de notes <span class="tab-badge is-hidden" id="notesReminderBadge">0</span></button>
         <button class="tab-button" type="button" id="tourTab">Tournées</button>
+        <button class="tab-button" type="button" id="backlogTab">Reliquats &amp; reprise</button>
         <button class="tab-button" type="button" id="prenetTab">Prix nets</button>
         <button class="tab-button" type="button" id="tarifTab">Tarifs &amp; Documents</button>
         <button class="tab-button" type="button" id="promotionTab">Promotions</button>
@@ -464,6 +465,58 @@
         </section>
       </main>
 
+      <main class="app-shell is-hidden" id="backlogView">
+        <section class="panel backlog-panel" aria-labelledby="backlogTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="step">Suivi terrain</p>
+              <h2 id="backlogTitle">Reliquats &amp; reprise</h2>
+              <p class="helper-text">Consultez les commandes en attente et les marchandises à récupérer chez les clients de votre secteur.</p>
+            </div>
+            <span class="status-pill" id="backlogStatus">À connecter au Drive</span>
+          </div>
+
+          <section class="dashboard-grid backlog-metrics" aria-label="Résumé reliquats et reprises">
+            <article class="panel metric-card"><span>Reliquats</span><strong id="backlogRemainderCount">0</strong><small>Commandes en attente</small></article>
+            <article class="panel metric-card"><span>Reprises</span><strong id="backlogReturnCount">0</strong><small>Marchandises à récupérer</small></article>
+            <article class="panel metric-card"><span>Total affiché</span><strong id="backlogTotalCount">0</strong><small>Sur votre secteur</small></article>
+          </section>
+
+          <div class="backlog-toolbar">
+            <label for="backlogSearch">
+              Rechercher
+              <input id="backlogSearch" type="search" autocomplete="off" placeholder="Client, produit, référence, ville…" />
+            </label>
+            <label for="backlogTypeFilter">
+              Type
+              <select id="backlogTypeFilter">
+                <option value="all">Tout afficher</option>
+                <option value="reliquat">Reliquats uniquement</option>
+                <option value="reprise">Reprises uniquement</option>
+              </select>
+            </label>
+            <button class="primary-button compact" type="button" id="refreshBacklog">Actualiser</button>
+          </div>
+
+          <div class="backlog-table-wrap">
+            <table class="backlog-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>N° commande</th>
+                  <th>Client</th>
+                  <th>Produit</th>
+                  <th>Quantité</th>
+                  <th>Commentaire</th>
+                </tr>
+              </thead>
+              <tbody id="backlogBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
       <main class="app-shell is-hidden" id="tarifView">
         <section class="panel tarif-panel" aria-labelledby="tarifTitle">
           <div class="panel-heading">
@@ -594,9 +647,9 @@
 
     <script src="stats.js?v=20260701f"></script>
     <script src="prenets.js"></script>
-    <script src="tarifs.js?v=20260708a"></script>
-    <script src="data.js?v=20260709f"></script>
+    <script src="tarifs.js?v=20260709a"></script>
+    <script src="data.js?v=20260709g"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260709f"></script>
+    <script src="script.js?v=20260709g"></script>
   </body>
 </html>

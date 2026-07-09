@@ -2,6 +2,7 @@ const allClients = window.APP_DATA?.clients || [];
 const products = window.APP_DATA?.products || [];
 const prenetClients = window.PRENET_DATA?.clients || [];
 const tariffConfig = window.TARIF_CONFIG || {};
+const initialBacklogItems = window.RELIQUATS_DATA?.items || [];
 
 let selectedClient = null;
 let lines = [];
@@ -15,6 +16,7 @@ let voiceNoteListening = false;
 let selectedTariff = null;
 let activeDashboardSector = null;
 let currentSessionToken = "";
+let backlogItemsCache = Array.isArray(initialBacklogItems) ? initialBacklogItems : [];
 let selectedTourCodes = new Set();
 let tourMapInstance = null;
 let tourMarkersLayer = null;
@@ -69,6 +71,7 @@ const historyTab = document.querySelector("#historyTab");
 const notesTab = document.querySelector("#notesTab");
 const notesReminderBadge = document.querySelector("#notesReminderBadge");
 const tourTab = document.querySelector("#tourTab");
+const backlogTab = document.querySelector("#backlogTab");
 const prenetTab = document.querySelector("#prenetTab");
 const tarifTab = document.querySelector("#tarifTab");
 const promotionTab = document.querySelector("#promotionTab");
@@ -78,6 +81,7 @@ const orderView = document.querySelector("#orderView");
 const historyView = document.querySelector("#historyView");
 const notesView = document.querySelector("#notesView");
 const tourView = document.querySelector("#tourView");
+const backlogView = document.querySelector("#backlogView");
 const prenetView = document.querySelector("#prenetView");
 const tarifView = document.querySelector("#tarifView");
 const promotionView = document.querySelector("#promotionView");
@@ -126,6 +130,14 @@ const savedTourSelect = document.querySelector("#savedTourSelect");
 const saveTourButton = document.querySelector("#saveTourButton");
 const loadTourButton = document.querySelector("#loadTourButton");
 const deleteTourButton = document.querySelector("#deleteTourButton");
+const backlogStatus = document.querySelector("#backlogStatus");
+const backlogRemainderCount = document.querySelector("#backlogRemainderCount");
+const backlogReturnCount = document.querySelector("#backlogReturnCount");
+const backlogTotalCount = document.querySelector("#backlogTotalCount");
+const backlogSearch = document.querySelector("#backlogSearch");
+const backlogTypeFilter = document.querySelector("#backlogTypeFilter");
+const refreshBacklog = document.querySelector("#refreshBacklog");
+const backlogBody = document.querySelector("#backlogBody");
 const prenetClientSearch = document.querySelector("#prenetClientSearch");
 const prenetClientSuggestions = document.querySelector("#prenetClientSuggestions");
 const prenetResult = document.querySelector("#prenetResult");
@@ -699,7 +711,126 @@ function arrangeTabsForUser(user) {
     return;
   }
   appTabs.insertBefore(tourTab, prenetTab);
+  appTabs.insertBefore(backlogTab, prenetTab);
   appTabs.appendChild(adminTab);
+}
+
+function normalizeBacklogType(value) {
+  const clean = normalize(value || "");
+  if (clean.includes("repris") || clean.includes("retour") || clean.includes("recuper")) return "reprise";
+  return "reliquat";
+}
+
+function getBacklogSectorKey(value) {
+  return normalize(value || "").replace(/^secteur\s*/, "").replace(/^0+/, "").toLowerCase();
+}
+
+function getBacklogClientMatch(item) {
+  const itemClientCode = normalize(item.clientCode || item.codeClient || item.code || item.referenceClient || item.refClient || "");
+  const itemClientName = normalize(item.clientName || item.client || item.nomClient || "");
+  return visibleClients.find((client) => {
+    if (itemClientCode && normalize(client.code) === itemClientCode) return true;
+    return itemClientName && normalize(client.name) === itemClientName;
+  });
+}
+
+function isBacklogItemForCurrentUser(item) {
+  if (!currentUser) return false;
+  if (currentUser.role === "admin") return true;
+  const allowedSectors = new Set((currentUser.sectors || [currentUser.sector]).map(getBacklogSectorKey));
+  const itemSector = getBacklogSectorKey(item.sector || item.secteur || "");
+  if (itemSector && allowedSectors.has(itemSector)) return true;
+  const client = getBacklogClientMatch(item);
+  return client ? allowedSectors.has(getBacklogSectorKey(client.sector)) : false;
+}
+
+function normalizeBacklogItem(item) {
+  const client = getBacklogClientMatch(item);
+  return {
+    id: item.id || `${item.date || ""}-${item.clientCode || item.client || ""}-${item.product || item.produit || ""}`,
+    type: normalizeBacklogType(item.type || item.nature || item.statut || ""),
+    date: item.date || item.createdAt || item.jour || "",
+    orderNumber: item.orderNumber || item.numeroCommande || item.commande || item.order || "",
+    sector: item.sector || item.secteur || client?.sector || "",
+    clientCode: item.clientCode || item.codeClient || item.code || item.referenceClient || item.refClient || client?.code || "",
+    clientName: item.clientName || item.client || item.nomClient || client?.name || "",
+    product: item.product || item.produit || item.designation || item.article || "",
+    reference: item.reference || item.ref || item.codeArticle || "",
+    quantity: item.quantity || item.quantite || item.qty || "",
+    detail: item.detail || item.commentaire || item.note || item.motif || "",
+  };
+}
+
+function getFilteredBacklogItems() {
+  const query = normalize(backlogSearch?.value || "");
+  const typeFilter = backlogTypeFilter?.value || "all";
+  return backlogItemsCache
+    .map(normalizeBacklogItem)
+    .filter(isBacklogItemForCurrentUser)
+    .filter((item) => typeFilter === "all" || item.type === typeFilter)
+    .filter((item) => {
+      if (!query) return true;
+      return normalize([
+        item.date,
+        item.type,
+        item.orderNumber,
+        item.sector,
+        item.clientCode,
+        item.clientName,
+        item.reference,
+        item.product,
+        item.quantity,
+        item.detail,
+      ].join(" ")).includes(query);
+    })
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || ""), "fr", { numeric: true }));
+}
+
+function renderBacklog() {
+  if (!backlogBody) return;
+  const sectorItems = backlogItemsCache.map(normalizeBacklogItem).filter(isBacklogItemForCurrentUser);
+  const filteredItems = getFilteredBacklogItems();
+  const reliquatCount = sectorItems.filter((item) => item.type === "reliquat").length;
+  const repriseCount = sectorItems.filter((item) => item.type === "reprise").length;
+  backlogRemainderCount.textContent = String(reliquatCount);
+  backlogReturnCount.textContent = String(repriseCount);
+  backlogTotalCount.textContent = String(filteredItems.length);
+
+  if (!backlogItemsCache.length) {
+    backlogBody.innerHTML = `<tr><td colspan="7" class="backlog-empty">Aucune donnée chargée pour le moment. Clique sur Actualiser pour lire le fichier Drive.</td></tr>`;
+    return;
+  }
+
+  backlogBody.innerHTML = filteredItems.length
+    ? filteredItems.map((item) => `
+      <tr>
+        <td><strong>${escapeHtml(item.date || "-")}</strong><small>${escapeHtml(item.sector || "")}</small></td>
+        <td><span class="backlog-badge ${item.type === "reprise" ? "is-return" : "is-remainder"}">${item.type === "reprise" ? "Reprise" : "Reliquat"}</span></td>
+        <td><strong>${escapeHtml(item.orderNumber || "-")}</strong></td>
+        <td><strong>${escapeHtml(item.clientName || "-")}</strong><small>${escapeHtml(item.clientCode || "")}</small></td>
+        <td><strong>${escapeHtml(item.product || "-")}</strong><small>${escapeHtml(item.reference || "")}</small></td>
+        <td><strong>${escapeHtml(item.quantity || "-")}</strong></td>
+        <td>${escapeHtml(item.detail || "-")}</td>
+      </tr>
+    `).join("")
+    : `<tr><td colspan="7" class="backlog-empty">Aucun reliquat ou reprise trouvé avec ce filtre.</td></tr>`;
+}
+
+async function loadBacklogItems() {
+  if (!backlogStatus || !refreshBacklog) return;
+  backlogStatus.textContent = "Actualisation…";
+  refreshBacklog.disabled = true;
+  try {
+    const result = await postService({ action: "getReliquatsReprises", token: currentSessionToken });
+    backlogItemsCache = Array.isArray(result.items) ? result.items : [];
+    const updatedAt = result.updatedAt || window.RELIQUATS_DATA?.updatedAt || "Drive";
+    backlogStatus.textContent = `À jour · ${updatedAt}`;
+  } catch (error) {
+    backlogStatus.textContent = backlogItemsCache.length ? "Données locales" : "Drive à connecter";
+  } finally {
+    refreshBacklog.disabled = false;
+    renderBacklog();
+  }
 }
 
 function closePasswordReset() {
@@ -2166,6 +2297,7 @@ function setActiveTab(tabName) {
   const showHistory = tabName === "history";
   const showNotes = tabName === "notes";
   const showTour = tabName === "tour";
+  const showBacklog = tabName === "backlog";
   const showPrenet = tabName === "prenet";
   const showTarif = tabName === "tarif";
   const showPromotion = tabName === "promotion";
@@ -2175,6 +2307,7 @@ function setActiveTab(tabName) {
   historyTab.classList.toggle("is-active", showHistory);
   notesTab.classList.toggle("is-active", showNotes);
   tourTab.classList.toggle("is-active", showTour);
+  backlogTab.classList.toggle("is-active", showBacklog);
   prenetTab.classList.toggle("is-active", showPrenet);
   tarifTab.classList.toggle("is-active", showTarif);
   promotionTab.classList.toggle("is-active", showPromotion);
@@ -2184,13 +2317,14 @@ function setActiveTab(tabName) {
   historyView.classList.toggle("is-hidden", !showHistory);
   notesView.classList.toggle("is-hidden", !showNotes);
   tourView.classList.toggle("is-hidden", !showTour);
+  backlogView.classList.toggle("is-hidden", !showBacklog);
   prenetView.classList.toggle("is-hidden", !showPrenet);
   tarifView.classList.toggle("is-hidden", !showTarif);
   promotionView.classList.toggle("is-hidden", !showPromotion);
   adminView.classList.toggle("is-hidden", !showAdmin);
 
   if (!showAdmin && currentUser?.role !== "admin") {
-    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", notes: "Prise de notes", tour: "Tournées", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
+    const names = { home: "Accueil", order: "Saisie commande", history: "Commandes passées", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
   }
 
@@ -2214,6 +2348,11 @@ function setActiveTab(tabName) {
       tourMapInstance?.invalidateSize();
       tourSearch.focus();
     });
+  }
+
+  if (showBacklog) {
+    loadBacklogItems();
+    requestAnimationFrame(() => backlogSearch.focus());
   }
 
   if (showPrenet) {
@@ -2559,6 +2698,7 @@ orderTab.addEventListener("click", () => setActiveTab("order"));
 historyTab.addEventListener("click", () => setActiveTab("history"));
 notesTab.addEventListener("click", () => setActiveTab("notes"));
 tourTab.addEventListener("click", () => setActiveTab("tour"));
+backlogTab.addEventListener("click", () => setActiveTab("backlog"));
 prenetTab.addEventListener("click", () => setActiveTab("prenet"));
 tarifTab.addEventListener("click", () => setActiveTab("tarif"));
 promotionTab.addEventListener("click", () => setActiveTab("promotion"));
@@ -2567,6 +2707,9 @@ refreshAdminLogs.addEventListener("click", loadAdminLogs);
 adminScopeFilter.addEventListener("change", renderAdminDashboard);
 resetAdminDashboard.addEventListener("click", resetAdminLogDisplay);
 adminOpenTourButton.addEventListener("click", () => setActiveTab("tour"));
+refreshBacklog.addEventListener("click", loadBacklogItems);
+backlogSearch.addEventListener("input", renderBacklog);
+backlogTypeFilter.addEventListener("change", renderBacklog);
 clearHistoryOrders.addEventListener("click", clearCurrentUserOrders);
 notesClientSearch.addEventListener("input", (event) => renderNotesSuggestions(event.target.value));
 notesForm.addEventListener("submit", saveClientNote);

@@ -2304,10 +2304,76 @@ h2 {
 .admin-action-badge.is-navigation { color: #6b21a8; background: #f3e8ff; }
 .admin-empty { padding: 34px !important; color: var(--muted); text-align: center !important; }
 
+.backlog-panel { overflow: hidden; }
+.backlog-panel .helper-text { margin: 8px 0 0; }
+.backlog-metrics { margin: 18px 0; }
+.backlog-toolbar {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(190px, .32fr) auto;
+  gap: 14px;
+  align-items: end;
+  padding: 18px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: #fafbfc;
+}
+.backlog-toolbar label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.backlog-toolbar input,
+.backlog-toolbar select {
+  min-height: 46px;
+  width: 100%;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--white);
+  color: var(--dark);
+  font: inherit;
+  font-weight: 800;
+}
+.backlog-table-wrap { overflow-x: auto; }
+.backlog-table { width: 100%; border-collapse: collapse; min-width: 980px; }
+.backlog-table th,
+.backlog-table td {
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.backlog-table th {
+  color: var(--muted);
+  background: var(--soft);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.backlog-table td strong { display: block; color: var(--dark); }
+.backlog-table td small { display: block; margin-top: 4px; color: var(--muted); font-weight: 800; }
+.backlog-badge {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.backlog-badge.is-remainder { color: #075985; background: #e0f2fe; }
+.backlog-badge.is-return { color: #9a3412; background: #ffedd5; }
+.backlog-empty { padding: 40px !important; color: var(--muted); text-align: center !important; font-weight: 800; }
+
 @media (max-width: 1180px) {
   .tour-layout,
   .tour-toolbar,
-  .tour-savebar {
+  .tour-savebar,
+  .backlog-toolbar {
     grid-template-columns: 1fr;
   }
 

@@ -8,7 +8,8 @@
       content="Interface simple de saisie de commande pour commerciaux terrain."
     />
     <title>Saisie de commande</title>
-    <link rel="stylesheet" href="style.css?v=20260708j" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css?v=20260708k" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -414,6 +415,22 @@
             </div>
           </div>
 
+          <div class="tour-savebar">
+            <label for="tourName">
+              Nom de la tournée
+              <input id="tourName" type="text" autocomplete="off" placeholder="Ex. Nantes nord, tournée mardi…" />
+            </label>
+            <button class="primary-button compact" type="button" id="saveTourButton">Sauvegarder</button>
+            <label for="savedTourSelect">
+              Tournées enregistrées
+              <select id="savedTourSelect">
+                <option value="">Aucune tournée enregistrée</option>
+              </select>
+            </label>
+            <button class="ghost-button compact" type="button" id="loadTourButton">Charger</button>
+            <button class="ghost-button compact" type="button" id="deleteTourButton">Supprimer</button>
+          </div>
+
           <div class="tour-layout">
             <section class="tour-map-card" aria-labelledby="tourMapTitle">
               <div class="tour-map-heading">
@@ -421,10 +438,10 @@
                   <p class="step">Carte</p>
                   <h3 id="tourMapTitle">Clients du secteur</h3>
                 </div>
-                <small>Carte schématique par code postal</small>
+                <small>Carte interactive</small>
               </div>
-              <div class="france-map" id="tourMap" aria-label="Carte schématique des clients"></div>
-              <p class="helper-text">Cliquez sur un point ou une fiche client pour l'ajouter à la tournée.</p>
+              <div class="france-map" id="tourMap" aria-label="Carte interactive des clients"></div>
+              <p class="helper-text">Cliquez sur un point ou une fiche client pour l'ajouter à la tournée. Les coordonnées exactes seront utilisées dès qu'elles seront présentes dans le fichier clients.</p>
             </section>
 
             <aside class="tour-list-panel" aria-labelledby="tourListTitle">
@@ -578,6 +595,7 @@
     <script src="prenets.js"></script>
     <script src="tarifs.js?v=20260708a"></script>
     <script src="data.js"></script>
-    <script src="script.js?v=20260708j"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js?v=20260708k"></script>
   </body>
 </html>

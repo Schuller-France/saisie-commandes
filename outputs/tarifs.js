@@ -1,7 +1,7 @@
 window.TARIF_CONFIG = {
   senderName: "Schuller – Ne pas répondre",
   senderEmail: "schullerrosheim@gmail.com",
-  endpoint: "https://script.google.com/macros/s/AKfycbwoWKUVdStFJjSzMwFBbjx1OyuneUbgQgVw91ibEkoJ0RZkYh7TGSc9ArX7AdNGYz6v1Q/exec",
+  endpoint: "https://script.google.com/macros/s/AKfycby0iV1kbVbBe0ZUZCq2EtMxWATmJfGYwaZXDERp906myl7rDfU5CG1DlYBhllwkjMZxjA/exec",
   tariffs: [
     {
       id: "tarif-50-plus-10",

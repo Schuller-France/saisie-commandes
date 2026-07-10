@@ -12,6 +12,8 @@ let activeHistoryOrderId = null;
 let selectedNotesClient = null;
 let editingNoteId = null;
 let notesHistoryMode = "client";
+let dashboardStatsOverride = null;
+let dashboardStatsLoading = false;
 let voiceRecognition = null;
 let voiceNoteListening = false;
 let selectedTariff = null;
@@ -568,8 +570,140 @@ function selectPrenetClient(client) {
       : '<div class="prenet-empty"><strong>Aucun prix net</strong><span>Aucune ligne disponible pour ce client.</span></div>'}`;
 }
 
+function findStatsClient(row) {
+  const rowCode = normalize(row.clientCode || row.codeClient || row.code || "");
+  const rowName = normalize(row.clientName || row.client || row.nomClient || "");
+  return allClients.find((client) => {
+    if (rowCode && normalize(client.code) === rowCode) return true;
+    return rowName && normalize(client.name) === rowName;
+  });
+}
+
+function normalizeStatsSector(value) {
+  const clean = normalize(value || "").replace(/^secteur\s*/, "").replace(/^0+/, "");
+  if (!clean) return "";
+  if (clean.endsWith("a")) return `Secteur ${clean.slice(0, -1).toUpperCase()}A`;
+  return `Secteur ${clean.toUpperCase()}`;
+}
+
+function getStatsDepartment(client) {
+  const zip = String(client?.deliveryZip || client?.billingZip || "").replace(/\D/g, "");
+  if (!zip) return "Autres";
+  if (zip.length === 4) return zip.slice(0, 1);
+  return zip.slice(0, 2);
+}
+
+function buildGoal(label, current, target, suffix) {
+  const diff = current - target;
+  const percent = target ? (diff / target) * 100 : 0;
+  const sign = diff >= 0 ? "+" : "";
+  return {
+    label,
+    current,
+    target,
+    format: "currency",
+    note: `${sign}${formatter.format(diff)} · ${sign}${percent.toFixed(1).replace(".", ",")}% ${suffix}`,
+  };
+}
+
+function buildStatsForSector(sector, rows, sourceInfo) {
+  const clientTotals = new Map();
+  const departmentTotals = new Map();
+  let totalRevenue = 0;
+  let totalObjective = 0;
+  let totalPrevious = 0;
+
+  rows.forEach((row) => {
+    const client = row.__client || findStatsClient(row);
+    const revenue = Number(row.revenue) || 0;
+    const objective = Number(row.objective) || 0;
+    const previous = Number(row.previousRevenue) || 0;
+    totalRevenue += revenue;
+    totalObjective += objective;
+    totalPrevious += previous;
+    const code = client?.code || row.clientCode || row.id;
+    const existing = clientTotals.get(code) || {
+      code,
+      name: client?.name || row.clientName || "Client",
+      revenue: 0,
+    };
+    existing.revenue += revenue;
+    clientTotals.set(code, existing);
+    const department = getStatsDepartment(client);
+    departmentTotals.set(department, (departmentTotals.get(department) || 0) + revenue);
+  });
+
+  const topClients = [...clientTotals.values()].filter((client) => client.revenue > 0).sort((a, b) => b.revenue - a.revenue);
+  const values = topClients.map((client) => client.revenue).sort((a, b) => a - b);
+  const median = values.length ? values[Math.floor(values.length / 2)] : 0;
+  const goals = [];
+  if (totalObjective > 0) goals.push(buildGoal("CA vs objectif", totalRevenue, totalObjective, "vs objectif"));
+  if (totalPrevious > 0) goals.push(buildGoal("CA vs N-1", totalRevenue, totalPrevious, "vs N-1"));
+
+  return {
+    updatedAt: sourceInfo.updatedAt || "Drive",
+    periodLabel: `CA depuis le début du mois · ${sector} · ${sourceInfo.sourceFile || "fichier Drive"}`,
+    kpis: {
+      revenue: totalRevenue,
+      clients: topClients.length,
+      averageClient: topClients.length ? totalRevenue / topClients.length : 0,
+      medianClient: median,
+      revenueNote: "CA fichier Drive",
+      clientsNote: `${topClients.length} client${topClients.length > 1 ? "s" : ""} avec CA`,
+      averageNote: `Médiane : ${formatter.format(median)}`,
+    },
+    salesTrend: [...departmentTotals.entries()]
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8),
+    goals,
+    topClients: topClients.slice(0, 8),
+  };
+}
+
+function buildDashboardStatsFromRows(rows, sourceInfo) {
+  const grouped = {};
+  (rows || []).forEach((row) => {
+    const client = findStatsClient(row);
+    const sector = normalizeStatsSector(row.sector) || client?.sector || "";
+    if (!sector) return;
+    if (!grouped[sector]) grouped[sector] = [];
+    grouped[sector].push({ ...row, __client: client });
+  });
+
+  const bySector = {};
+  Object.keys(grouped).forEach((sector) => {
+    bySector[sector] = buildStatsForSector(sector, grouped[sector], sourceInfo);
+  });
+
+  return {
+    bySector,
+    default: bySector["Secteur 9"] || Object.values(bySector)[0] || window.APP_STATS?.default || {},
+  };
+}
+
+async function loadDashboardStatsFromDrive() {
+  if (!currentSessionToken || dashboardStatsLoading || currentUser?.role === "admin") return;
+  dashboardStatsLoading = true;
+  const previousUpdatedAt = document.querySelector("#dashboardUpdatedAt").textContent;
+  document.querySelector("#dashboardUpdatedAt").textContent = "Actualisation Drive…";
+  try {
+    const result = await postService({ action: "getDashboardStats", token: currentSessionToken });
+    dashboardStatsOverride = buildDashboardStatsFromRows(result.rows || [], {
+      updatedAt: result.updatedAt,
+      sourceFile: result.sourceFile,
+    });
+    renderDashboardSectorSwitch(currentUser);
+    renderDashboard(currentUser);
+  } catch (error) {
+    document.querySelector("#dashboardUpdatedAt").textContent = previousUpdatedAt || "Données locales";
+  } finally {
+    dashboardStatsLoading = false;
+  }
+}
+
 function getDashboardStats(user) {
-  const stats = window.APP_STATS || {};
+  const stats = dashboardStatsOverride || window.APP_STATS || {};
   if (activeDashboardSector && stats.bySector?.[activeDashboardSector]) return stats.bySector[activeDashboardSector];
   if (stats.byUser?.[user.id]) return stats.byUser[user.id];
   if (user.id === "flo") return stats.default || {};
@@ -936,6 +1070,7 @@ function showApp(user, token = user.token || "") {
   resetOrder();
   renderDashboardSectorSwitch(currentUser);
   renderDashboard(currentUser);
+  loadDashboardStatsFromDrive();
   renderHomeReminders();
   renderPrenetEmpty();
   renderNotesEmpty();

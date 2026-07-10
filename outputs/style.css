@@ -2304,6 +2304,84 @@ h2 {
 .admin-action-badge.is-navigation { color: #6b21a8; background: #f3e8ff; }
 .admin-empty { padding: 34px !important; color: var(--muted); text-align: center !important; }
 
+.tablet-mode {
+  --radius: 18px;
+  font-size: 17px;
+}
+.tablet-mode .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 16px 22px;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, .08);
+}
+.tablet-mode .app-tabs {
+  position: sticky;
+  top: 74px;
+  z-index: 19;
+  padding: 12px 18px;
+  background: rgba(244, 246, 249, .96);
+  backdrop-filter: blur(10px);
+}
+.tablet-mode .tab-button,
+.tablet-mode .ghost-button,
+.tablet-mode .primary-button {
+  min-height: 52px;
+  padding: 0 18px;
+  font-size: 15px;
+}
+.tablet-mode .app-shell {
+  max-width: 100%;
+  padding: 16px;
+}
+.tablet-mode .panel {
+  border-radius: 22px;
+}
+.tablet-mode .notes-search,
+.tablet-mode .search-block,
+.tablet-mode .prenet-search-block {
+  position: sticky;
+  top: 142px;
+  z-index: 18;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, .08);
+}
+.tablet-mode input,
+.tablet-mode textarea,
+.tablet-mode select {
+  min-height: 54px;
+  font-size: 17px;
+}
+.tablet-mode textarea {
+  min-height: 220px;
+}
+.tablet-mode .quick-note-buttons {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+.tablet-mode .quick-note-buttons button,
+.tablet-mode .voice-note-button {
+  min-height: 58px;
+  font-size: 16px;
+}
+.tablet-mode .voice-note-button {
+  border-width: 2px;
+  transform: none;
+}
+.tablet-mode .notes-form-actions {
+  grid-template-columns: 1fr;
+}
+.tablet-mode .notes-form-actions .primary-button,
+.tablet-mode .notes-form-actions .ghost-button {
+  width: 100%;
+}
+.tablet-mode .metric-card strong {
+  font-size: 34px;
+}
+.tablet-mode .admin-dashboard-grid,
+.tablet-mode .notes-layout,
+.tablet-mode .tour-layout {
+  grid-template-columns: 1fr;
+}
+
 .backlog-panel { overflow: hidden; }
 .backlog-panel .helper-text { margin: 8px 0 0; }
 .backlog-metrics { margin: 18px 0; }

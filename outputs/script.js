@@ -26,6 +26,7 @@ const sessionStorageKey = "orderEntryUser";
 const rememberedSessionKey = "schullerRememberedSession";
 const adminResetKey = "schullerAdminResetAt";
 const savedToursStorageKey = "schullerSavedTours";
+const displayModeStorageKey = "schullerDisplayMode";
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -63,6 +64,7 @@ const requestResetButton = document.querySelector("#requestResetButton");
 const confirmResetButton = document.querySelector("#confirmResetButton");
 const backToLoginButton = document.querySelector("#backToLoginButton");
 const logoutButton = document.querySelector("#logoutButton");
+const displayModeToggle = document.querySelector("#displayModeToggle");
 const sessionLabel = document.querySelector("#sessionLabel");
 const appTabs = document.querySelector(".app-tabs");
 const homeTab = document.querySelector("#homeTab");
@@ -92,6 +94,9 @@ const adminLogStatus = document.querySelector("#adminLogStatus");
 const adminActivityCount = document.querySelector("#adminActivityCount");
 const adminOrderCount = document.querySelector("#adminOrderCount");
 const adminDocumentCount = document.querySelector("#adminDocumentCount");
+const adminClientCount = document.querySelector("#adminClientCount");
+const adminNoteCount = document.querySelector("#adminNoteCount");
+const adminReminderCount = document.querySelector("#adminReminderCount");
 const adminScopeFilter = document.querySelector("#adminScopeFilter");
 const adminActivityFeed = document.querySelector("#adminActivityFeed");
 const adminTypeSummary = document.querySelector("#adminTypeSummary");
@@ -112,6 +117,8 @@ const notesText = document.querySelector("#notesText");
 const startVoiceNote = document.querySelector("#startVoiceNote");
 const voiceNoteStatus = document.querySelector("#voiceNoteStatus");
 const saveNoteButton = document.querySelector("#saveNoteButton");
+const finishVisitButton = document.querySelector("#finishVisitButton");
+const exportVisitReportButton = document.querySelector("#exportVisitReportButton");
 const cancelEditNote = document.querySelector("#cancelEditNote");
 const notesCount = document.querySelector("#notesCount");
 const notesList = document.querySelector("#notesList");
@@ -182,6 +189,17 @@ async function postService(parameters) {
 function recordActivity(type, detail = "") {
   if (!currentSessionToken || currentUser?.role === "admin") return;
   postService({ action: "logActivity", token: currentSessionToken, type, detail }).catch(() => {});
+}
+
+function setDisplayMode(mode) {
+  const tablet = mode === "tablet";
+  document.body.classList.toggle("tablet-mode", tablet);
+  localStorage.setItem(displayModeStorageKey, tablet ? "tablet" : "pc");
+  displayModeToggle.textContent = tablet ? "Mode PC" : "Mode tablette";
+}
+
+function toggleDisplayMode() {
+  setDisplayMode(document.body.classList.contains("tablet-mode") ? "pc" : "tablet");
 }
 
 async function loadAdminLogs() {
@@ -261,6 +279,9 @@ function renderAdminDashboard() {
   adminActivityCount.textContent = String(logs.length);
   adminOrderCount.textContent = String(logs.filter((log) => normalize(log.type || "").includes("commande")).length);
   adminDocumentCount.textContent = String(logs.filter((log) => normalize(log.type || "").includes("document")).length);
+  adminClientCount.textContent = String(logs.filter((log) => normalize(log.type || "").includes("client")).length);
+  adminNoteCount.textContent = String(logs.filter((log) => normalize(log.type || "").includes("note")).length);
+  adminReminderCount.textContent = String(logs.filter((log) => normalize(log.type || "").includes("relance")).length);
 
   adminTypeSummary.innerHTML = Object.keys(counts).length
     ? Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([type, count]) => `
@@ -1427,6 +1448,53 @@ function getStoredNotes() {
 
 function saveStoredNotes(notes) {
   localStorage.setItem("schullerClientNotes", JSON.stringify(notes));
+}
+
+function getVisibleVisitNotes() {
+  if (!currentUser) return [];
+  const allowedCodes = new Set(visibleClients.map((client) => client.code));
+  return getStoredNotes()
+    .filter((note) => note.userId === currentUser.id && allowedCodes.has(note.clientCode))
+    .sort((a, b) => String(a.clientName || "").localeCompare(String(b.clientName || ""), "fr") || String(a.date || "").localeCompare(String(b.date || "")));
+}
+
+function exportVisitReport(clientOnly = false) {
+  if (!currentUser) return;
+  const notes = getVisibleVisitNotes().filter((note) => !clientOnly || note.clientCode === selectedNotesClient?.code);
+  if (!notes.length) {
+    alert(clientOnly ? "Aucune visite enregistrée pour ce client." : "Aucune visite enregistrée à exporter.");
+    return;
+  }
+  const rows = [
+    ["Commercial", "Secteur", "Code client", "Client", "Date visite", "Compte-rendu", "Relance prévue", "Motif relance", "Relance faite"],
+    ...notes.map((note) => [
+      note.userName || currentUser.name,
+      note.clientSector || "",
+      note.clientCode || "",
+      note.clientName || "",
+      formatNoteDate(note.date),
+      note.text || "",
+      note.reminderDate ? formatNoteDate(note.reminderDate) : "",
+      note.reminderText || "",
+      note.reminderDone ? "Oui" : "Non",
+    ]),
+  ];
+  const scope = clientOnly && selectedNotesClient ? selectedNotesClient.code : currentUser.id;
+  downloadCsv(`compte-rendu-visites-${scope}-${todayInputDate()}.csv`, rows);
+  recordActivity("Compte-rendu exporté", `${notes.length} visite(s) exportée(s)${clientOnly && selectedNotesClient ? ` - ${selectedNotesClient.name}` : ""}`);
+}
+
+function finishVisit() {
+  if (!selectedNotesClient) {
+    notesStatus.textContent = "Sélectionnez un client avant de terminer le rendez-vous.";
+    notesClientSearch.focus();
+    return;
+  }
+  if (!notesText.value.trim()) {
+    notesText.value = "Rendez-vous terminé";
+  }
+  recordActivity("Rendez-vous terminé", `${selectedNotesClient.name} (${selectedNotesClient.code})`);
+  notesForm.requestSubmit();
 }
 
 function formatNoteDate(isoDate) {
@@ -2715,6 +2783,8 @@ notesClientSearch.addEventListener("input", (event) => renderNotesSuggestions(ev
 notesForm.addEventListener("submit", saveClientNote);
 cancelEditNote.addEventListener("click", cancelNoteEdit);
 startVoiceNote.addEventListener("click", toggleVoiceNote);
+finishVisitButton.addEventListener("click", finishVisit);
+exportVisitReportButton.addEventListener("click", () => exportVisitReport(false));
 noteReminderEnabled.addEventListener("change", () => setReminderFieldsEnabled(noteReminderEnabled.checked));
 notesForm.addEventListener("click", (event) => {
   const templateButton = event.target.closest("[data-note-template]");
@@ -2724,6 +2794,11 @@ notesForm.addEventListener("click", (event) => {
   notesText.value = `${notesText.value.trimEnd()}${separator}${text}`;
   if (templateButton.dataset.templateReminder === "1") {
     setReminderFieldsEnabled(true);
+    if (!noteReminderDate.value) {
+      const date = new Date();
+      date.setDate(date.getDate() + 7);
+      noteReminderDate.value = date.toISOString().slice(0, 10);
+    }
     if (!noteReminderText.value.trim()) noteReminderText.value = "Relancer le client";
   }
   notesText.focus();
@@ -2784,6 +2859,7 @@ promotionGrid.addEventListener("click", (event) => {
   if (sendId) sendPromotions(sendId);
 });
 closePromotionModal.addEventListener("click", closePromotionPreview);
+displayModeToggle.addEventListener("click", toggleDisplayMode);
 logoutButton.addEventListener("click", showLogin);
 loginForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -2819,4 +2895,5 @@ document.addEventListener("click", (event) => {
 });
 
 setupVoiceNotes();
+setDisplayMode(localStorage.getItem(displayModeStorageKey) === "tablet" ? "tablet" : "pc");
 restoreSession();

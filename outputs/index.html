@@ -9,7 +9,7 @@
     />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260710a" />
+    <link rel="stylesheet" href="style.css?v=20260710b" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -325,6 +325,7 @@
           <div class="notes-search">
             <label for="notesClientSearch">Rechercher un client</label>
             <input id="notesClientSearch" type="search" autocomplete="off" placeholder="Tapez le nom, la ville ou le code client…" />
+            <button class="primary-button compact" type="button" id="showAllNotesButton">Mes notes</button>
             <div class="suggestions notes-suggestions" id="notesClientSuggestions" role="listbox"></div>
           </div>
 
@@ -389,6 +390,11 @@
                   <h3 id="notesHistoryTitle">Notes du client</h3>
                 </div>
                 <span class="status-pill" id="notesCount">0 note</span>
+              </div>
+              <div class="notes-report-toolbar">
+                <label for="reportStartDate">Du <input id="reportStartDate" type="date" /></label>
+                <label for="reportEndDate">Au <input id="reportEndDate" type="date" /></label>
+                <button class="ghost-button compact" type="button" id="exportPeriodReportButton">Exporter la période</button>
               </div>
               <div class="notes-list" id="notesList">
                 <div class="notes-empty">Les notes du client sélectionné apparaîtront ici.</div>
@@ -657,6 +663,6 @@
     <script src="tarifs.js?v=20260709d"></script>
     <script src="data.js?v=20260709g"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260710a"></script>
+    <script src="script.js?v=20260710b"></script>
   </body>
 </html>

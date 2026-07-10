@@ -1661,6 +1661,34 @@ h2 {
   font-size: 24px;
 }
 
+.notes-report-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+  padding: 14px 24px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+
+.notes-report-toolbar label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.notes-report-toolbar input {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--dark);
+  font-weight: 800;
+}
+
 .notes-list {
   display: grid;
   gap: 16px;
@@ -2511,6 +2539,7 @@ h2 {
   .notes-search,
   .notes-editor,
   .notes-history-header,
+  .notes-report-toolbar,
   .notes-list {
     padding-right: 16px;
     padding-left: 16px;

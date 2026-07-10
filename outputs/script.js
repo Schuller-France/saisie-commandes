@@ -11,6 +11,7 @@ let visibleClients = [];
 let activeHistoryOrderId = null;
 let selectedNotesClient = null;
 let editingNoteId = null;
+let notesHistoryMode = "client";
 let voiceRecognition = null;
 let voiceNoteListening = false;
 let selectedTariff = null;
@@ -108,6 +109,7 @@ const historyCount = document.querySelector("#historyCount");
 const clearHistoryOrders = document.querySelector("#clearHistoryOrders");
 const notesClientSearch = document.querySelector("#notesClientSearch");
 const notesClientSuggestions = document.querySelector("#notesClientSuggestions");
+const showAllNotesButton = document.querySelector("#showAllNotesButton");
 const notesReminderFocus = document.querySelector("#notesReminderFocus");
 const notesStatus = document.querySelector("#notesStatus");
 const notesSelectedClient = document.querySelector("#notesSelectedClient");
@@ -122,6 +124,10 @@ const exportVisitReportButton = document.querySelector("#exportVisitReportButton
 const cancelEditNote = document.querySelector("#cancelEditNote");
 const notesCount = document.querySelector("#notesCount");
 const notesList = document.querySelector("#notesList");
+const notesHistoryTitle = document.querySelector("#notesHistoryTitle");
+const reportStartDate = document.querySelector("#reportStartDate");
+const reportEndDate = document.querySelector("#reportEndDate");
+const exportPeriodReportButton = document.querySelector("#exportPeriodReportButton");
 const tourSearch = document.querySelector("#tourSearch");
 const tourMap = document.querySelector("#tourMap");
 const tourClientList = document.querySelector("#tourClientList");
@@ -1458,11 +1464,22 @@ function getVisibleVisitNotes() {
     .sort((a, b) => String(a.clientName || "").localeCompare(String(b.clientName || ""), "fr") || String(a.date || "").localeCompare(String(b.date || "")));
 }
 
+function noteMatchesReportPeriod(note) {
+  const date = String(note.date || "").slice(0, 10);
+  const start = reportStartDate?.value || "";
+  const end = reportEndDate?.value || "";
+  if (start && date < start) return false;
+  if (end && date > end) return false;
+  return true;
+}
+
 function exportVisitReport(clientOnly = false) {
   if (!currentUser) return;
-  const notes = getVisibleVisitNotes().filter((note) => !clientOnly || note.clientCode === selectedNotesClient?.code);
+  const notes = getVisibleVisitNotes()
+    .filter((note) => !clientOnly || note.clientCode === selectedNotesClient?.code)
+    .filter(noteMatchesReportPeriod);
   if (!notes.length) {
-    alert(clientOnly ? "Aucune visite enregistrée pour ce client." : "Aucune visite enregistrée à exporter.");
+    alert(clientOnly ? "Aucune visite enregistrée pour ce client sur cette période." : "Aucune visite enregistrée à exporter sur cette période.");
     return;
   }
   const rows = [
@@ -1744,9 +1761,11 @@ function selectNotesClient(client) {
 function renderNotesEmpty(message = "Recherchez un client pour afficher ses notes de rendez-vous.") {
   selectedNotesClient = null;
   editingNoteId = null;
+  notesHistoryMode = "client";
   hideReminderFocus();
   notesStatus.textContent = "Aucun client sélectionné";
   notesCount.textContent = "0 note";
+  notesHistoryTitle.textContent = "Notes du client";
   notesSelectedClient.innerHTML = `
     <strong>Sélectionnez un client</strong>
     <span>Choisissez un client en haut pour ajouter ou consulter ses notes de rendez-vous.</span>
@@ -1760,9 +1779,60 @@ function renderNotesEmpty(message = "Recherchez un client pour afficher ses note
   renderNotesReminderInbox();
 }
 
+function renderAllNotes() {
+  notesHistoryMode = "all";
+  hideReminderFocus();
+  const notes = getVisibleVisitNotes().filter(noteMatchesReportPeriod).sort((a, b) => {
+    const dateCompare = String(b.date || "").localeCompare(String(a.date || ""));
+    if (dateCompare !== 0) return dateCompare;
+    return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
+  });
+  notesStatus.textContent = "Toutes vos notes";
+  notesHistoryTitle.textContent = "Mes notes";
+  notesCount.textContent = `${notes.length} note${notes.length > 1 ? "s" : ""}`;
+
+  if (!notes.length) {
+    notesList.innerHTML = `
+      <div class="notes-empty">
+        <strong>Aucune note trouvée.</strong>
+        <span>Modifiez la période ou sélectionnez un client pour ajouter une nouvelle note.</span>
+      </div>
+    `;
+    return;
+  }
+
+  notesList.innerHTML = notes.map((note) => `
+    <article class="note-card all-note-card" data-note-id="${escapeHtml(note.id)}">
+      <div class="note-card-header">
+        <div>
+          <span class="note-date">${escapeHtml(formatNoteDate(note.date))}</span>
+          <strong>${escapeHtml(note.clientName || "Client")}</strong>
+          <small>${escapeHtml(note.clientCode || "")}${note.clientSector ? ` - ${escapeHtml(note.clientSector)}` : ""}</small>
+        </div>
+        <div class="note-actions">
+          <button class="ghost-button compact" type="button" data-edit-note="${escapeHtml(note.id)}">Modifier</button>
+          <button class="history-delete" type="button" data-delete-note="${escapeHtml(note.id)}" title="Supprimer cette note">×</button>
+        </div>
+      </div>
+      <p>${escapeHtml(note.text).replaceAll("\n", "<br>")}</p>
+      ${note.reminderDate ? `
+        <div class="note-reminder ${reminderStatus(note)}">
+          <div>
+            <strong>${note.reminderDone ? "Relance faite" : "Relance prévue"}</strong>
+            <span>${escapeHtml(formatNoteDate(note.reminderDate))} - ${escapeHtml(note.reminderText || "Relance client")}</span>
+          </div>
+          ${!note.reminderDone ? `<button class="primary-button compact" type="button" data-done-reminder="${escapeHtml(note.id)}">Marquer fait</button>` : ""}
+        </div>
+      ` : ""}
+    </article>
+  `).join("");
+}
+
 function renderClientNotes() {
+  notesHistoryMode = "client";
   const notes = getVisibleNotesForClient();
   notesCount.textContent = `${notes.length} note${notes.length > 1 ? "s" : ""}`;
+  notesHistoryTitle.textContent = "Notes du client";
 
   if (!selectedNotesClient) {
     renderNotesEmpty();
@@ -1867,13 +1937,28 @@ function saveClientNote(event) {
   resetReminderFields();
   saveNoteButton.textContent = "Enregistrer la note";
   cancelEditNote.classList.add("is-hidden");
-  renderClientNotes();
+  if (notesHistoryMode === "all") {
+    renderAllNotes();
+  } else {
+    renderClientNotes();
+  }
   renderHomeReminders();
 }
 
 function editClientNote(noteId) {
-  const note = getVisibleNotesForClient().find((item) => item.id === noteId);
+  const note = getVisibleVisitNotes().find((item) => item.id === noteId);
   if (!note) return;
+  const client = visibleClients.find((item) => item.code === note.clientCode);
+  if (client && selectedNotesClient?.code !== client.code) {
+    selectedNotesClient = client;
+    notesClientSearch.value = client.name;
+    notesStatus.textContent = `${client.name} - ${client.code}`;
+    notesSelectedClient.innerHTML = `
+      <strong>${escapeHtml(client.name)}</strong>
+      <span>${escapeHtml(client.code)} - ${escapeHtml(client.billingZip)} ${escapeHtml(client.billingCity)}</span>
+      <span>${escapeHtml(client.sector)}${client.phone ? ` - ${escapeHtml(client.phone)}` : ""}</span>
+    `;
+  }
   editingNoteId = note.id;
   notesDate.value = note.date;
   notesText.value = note.text;
@@ -1899,13 +1984,17 @@ function cancelNoteEdit() {
 }
 
 function deleteClientNote(noteId) {
-  const note = getVisibleNotesForClient().find((item) => item.id === noteId);
+  const note = getVisibleVisitNotes().find((item) => item.id === noteId);
   if (!note) return;
+  const wasAllNotes = notesHistoryMode === "all";
+  const client = visibleClients.find((item) => item.code === note.clientCode);
+  if (client && selectedNotesClient?.code !== client.code) selectedNotesClient = client;
   if (!confirm(`Supprimer la note du ${formatNoteDate(note.date)} pour ${selectedNotesClient.name} ?`)) return;
   saveStoredNotes(getStoredNotes().filter((item) => item.id !== noteId));
   if (editingNoteId === noteId) cancelNoteEdit();
   recordActivity("Note client supprimée", `${selectedNotesClient.name} (${selectedNotesClient.code}) - ${formatNoteDate(note.date)}`);
   renderClientNotes();
+  if (wasAllNotes) renderAllNotes();
   renderHomeReminders();
 }
 
@@ -2758,6 +2847,16 @@ function resetOrder() {
   updateSummary();
 }
 
+function refreshNotesHistoryFromCurrentMode() {
+  if (notesHistoryMode === "all") {
+    renderAllNotes();
+  } else if (selectedNotesClient) {
+    renderClientNotes();
+  } else {
+    renderNotesReminderInbox();
+  }
+}
+
 clientSearch.addEventListener("input", (event) => renderClientSuggestions(event.target.value));
 document.querySelector("#addLine").addEventListener("click", addLine);
 document.querySelector("#generateOrderFiles").addEventListener("click", generateOrderFiles);
@@ -2780,11 +2879,15 @@ backlogSearch.addEventListener("input", renderBacklog);
 backlogTypeFilter.addEventListener("change", renderBacklog);
 clearHistoryOrders.addEventListener("click", clearCurrentUserOrders);
 notesClientSearch.addEventListener("input", (event) => renderNotesSuggestions(event.target.value));
+showAllNotesButton.addEventListener("click", renderAllNotes);
 notesForm.addEventListener("submit", saveClientNote);
 cancelEditNote.addEventListener("click", cancelNoteEdit);
 startVoiceNote.addEventListener("click", toggleVoiceNote);
 finishVisitButton.addEventListener("click", finishVisit);
 exportVisitReportButton.addEventListener("click", () => exportVisitReport(false));
+reportStartDate.addEventListener("change", refreshNotesHistoryFromCurrentMode);
+reportEndDate.addEventListener("change", refreshNotesHistoryFromCurrentMode);
+exportPeriodReportButton.addEventListener("click", () => exportVisitReport(notesHistoryMode === "client" && Boolean(selectedNotesClient)));
 noteReminderEnabled.addEventListener("change", () => setReminderFieldsEnabled(noteReminderEnabled.checked));
 notesForm.addEventListener("click", (event) => {
   const templateButton = event.target.closest("[data-note-template]");

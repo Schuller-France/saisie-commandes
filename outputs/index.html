@@ -9,7 +9,7 @@
     />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css?v=20260709g" />
+    <link rel="stylesheet" href="style.css?v=20260710a" />
   </head>
   <body>
     <section class="login-view" id="loginView" aria-labelledby="loginTitle">
@@ -79,6 +79,7 @@
           <p class="eyebrow" id="sessionLabel">Schuller Eh'Klar France</p>
         </div>
         <div class="header-actions">
+          <button class="ghost-button" type="button" id="displayModeToggle">Mode tablette</button>
           <button class="ghost-button" type="button" id="logoutButton">Déconnexion</button>
         </div>
       </header>
@@ -346,6 +347,7 @@
                   <button type="button" data-note-template="Client intéressé">Client intéressé</button>
                   <button type="button" data-note-template="À relancer" data-template-reminder="1">À relancer</button>
                   <button type="button" data-note-template="Commande probable">Commande probable</button>
+                  <button type="button" data-note-template="Devis à faire">Devis à faire</button>
                   <button type="button" data-note-template="Pas intéressé">Pas intéressé</button>
                   <button type="button" data-note-template="Problème tarif">Problème tarif</button>
                   <button type="button" data-note-template="Besoin catalogue">Besoin catalogue</button>
@@ -373,6 +375,8 @@
 
                 <div class="notes-form-actions">
                   <button class="primary-button" type="submit" id="saveNoteButton">Enregistrer la note</button>
+                  <button class="primary-button" type="button" id="finishVisitButton">Rendez-vous terminé</button>
+                  <button class="ghost-button compact" type="button" id="exportVisitReportButton">Exporter compte-rendu Excel</button>
                   <button class="ghost-button compact is-hidden" type="button" id="cancelEditNote">Annuler la modification</button>
                 </div>
               </form>
@@ -625,6 +629,9 @@
           <article class="panel metric-card"><span>Activités affichées</span><strong id="adminActivityCount">0</strong><small>Sur le filtre sélectionné</small></article>
           <article class="panel metric-card"><span>Commandes</span><strong id="adminOrderCount">0</strong><small>Commandes générées</small></article>
           <article class="panel metric-card"><span>Documents envoyés</span><strong id="adminDocumentCount">0</strong><small>Tarifs et catalogues</small></article>
+          <article class="panel metric-card"><span>Clients consultés</span><strong id="adminClientCount">0</strong><small>Recherches / fiches client</small></article>
+          <article class="panel metric-card"><span>Notes ajoutées</span><strong id="adminNoteCount">0</strong><small>Comptes-rendus terrain</small></article>
+          <article class="panel metric-card"><span>Relances faites</span><strong id="adminReminderCount">0</strong><small>Actions terminées</small></article>
         </section>
         <section class="admin-dashboard-grid">
           <article class="panel admin-feed-panel">
@@ -650,6 +657,6 @@
     <script src="tarifs.js?v=20260709d"></script>
     <script src="data.js?v=20260709g"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js?v=20260709g"></script>
+    <script src="script.js?v=20260710a"></script>
   </body>
 </html>

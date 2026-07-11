@@ -7,6 +7,13 @@
       name="description"
       content="Interface simple de saisie de commande pour commerciaux terrain."
     />
+    <meta name="theme-color" content="#e30613" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Schuller" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="assets/schuller-app-icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/schuller-logo.png" />
     <title>Saisie de commande</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css?v=20260710b" />
@@ -664,5 +671,12 @@
     <script src="data.js?v=20260709g"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js?v=20260710c"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("sw.js").catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>

@@ -3,6 +3,7 @@ let products = [];
 let prenetClients = [];
 let tariffConfig = { ...(window.TARIF_CONFIG || {}) };
 let localStatsData = {};
+let clientArticleStats360 = { available: false, sourceFile: "", updatedAt: "", byClient: {} };
 let prenetDataMeta = { updatedAt: "" };
 let secureDataLoaded = false;
 let promotionsRefreshInProgress = false;
@@ -10,6 +11,7 @@ let lastPromotionsRefreshAt = 0;
 const initialBacklogItems = window.RELIQUATS_DATA?.items || [];
 
 let selectedClient = null;
+let selectedClient360 = null;
 let selectedQuoteClient = null;
 let selectedPrenetClient = null;
 let lines = [];
@@ -90,11 +92,13 @@ const confirmResetButton = document.querySelector("#confirmResetButton");
 const backToLoginButton = document.querySelector("#backToLoginButton");
 const logoutButton = document.querySelector("#logoutButton");
 const displayModeToggle = document.querySelector("#displayModeToggle");
+const offlineStatus = document.querySelector("#offlineStatus");
 const globalSearchInput = document.querySelector("#globalSearchInput");
 const globalSearchResults = document.querySelector("#globalSearchResults");
 const sessionLabel = document.querySelector("#sessionLabel");
 const appTabs = document.querySelector(".app-tabs");
 const homeTab = document.querySelector("#homeTab");
+const client360Tab = document.querySelector("#client360Tab");
 const orderTab = document.querySelector("#orderTab");
 const historyTab = document.querySelector("#historyTab");
 const quoteTab = document.querySelector("#quoteTab");
@@ -108,6 +112,7 @@ const tarifTab = document.querySelector("#tarifTab");
 const promotionTab = document.querySelector("#promotionTab");
 const adminTab = document.querySelector("#adminTab");
 const homeView = document.querySelector("#homeView");
+const client360View = document.querySelector("#client360View");
 const orderView = document.querySelector("#orderView");
 const quoteView = document.querySelector("#quoteView");
 const expensesView = document.querySelector("#expensesView");
@@ -235,6 +240,18 @@ const dashboardSectorSwitch = document.querySelector("#dashboardSectorSwitch");
 const homeRemindersPanel = document.querySelector("#homeRemindersPanel");
 const homeRemindersCount = document.querySelector("#homeRemindersCount");
 const homeRemindersList = document.querySelector("#homeRemindersList");
+const client360Search = document.querySelector("#client360Search");
+const client360Suggestions = document.querySelector("#client360Suggestions");
+const client360Status = document.querySelector("#client360Status");
+const client360Summary = document.querySelector("#client360Summary");
+const client360NotesCount = document.querySelector("#client360NotesCount");
+const client360QuotesCount = document.querySelector("#client360QuotesCount");
+const client360PrenetCount = document.querySelector("#client360PrenetCount");
+const client360OrdersCount = document.querySelector("#client360OrdersCount");
+const client360Notes = document.querySelector("#client360Notes");
+const client360Quotes = document.querySelector("#client360Quotes");
+const client360Prenets = document.querySelector("#client360Prenets");
+const client360Orders = document.querySelector("#client360Orders");
 const noteReminderEnabled = document.querySelector("#noteReminderEnabled");
 const noteReminderFields = document.querySelector("#noteReminderFields");
 const noteReminderDate = document.querySelector("#noteReminderDate");
@@ -269,6 +286,7 @@ function applySecureAppData(result) {
     sourceFile: result.prenetData?.sourceFile || "",
   };
   localStatsData = result.stats || {};
+  clientArticleStats360 = result.clientArticleStats || { available: false, sourceFile: "", updatedAt: "", byClient: {} };
   tariffConfig = {
     ...tariffConfig,
     ...(result.tariffConfig || {}),
@@ -322,6 +340,7 @@ async function refreshSecureAppDataInBackground(token, userId) {
       renderDashboard(currentUser);
       renderDashboardSectorSwitch(currentUser);
       renderPromotions();
+      if (selectedClient360) selectClient360(selectedClient360);
     }
   } catch (error) {
     // La copie locale permet de continuer à travailler même si Google répond lentement.
@@ -360,6 +379,7 @@ function clearSecureAppData() {
   products = [];
   prenetClients = [];
   localStatsData = {};
+  clientArticleStats360 = { available: false, sourceFile: "", updatedAt: "", byClient: {} };
   prenetDataMeta = { updatedAt: "" };
   tariffConfig = { endpoint: tariffConfig.endpoint || "" };
   secureDataLoaded = false;
@@ -980,6 +1000,7 @@ function buildStatsForSector(sector, rows, sourceInfo, fallbackStats = {}) {
       .sort((a, b) => b.value - a.value)
       .slice(0, 8),
     goals: safeGoals,
+    allClientsStats: topClients,
     topClients: topClients.slice(0, 8),
   };
 }
@@ -1027,6 +1048,17 @@ async function loadDashboardStatsFromDrive() {
     document.querySelector("#dashboardUpdatedAt").textContent = previousUpdatedAt || "Données locales";
   } finally {
     dashboardStatsLoading = false;
+  }
+}
+
+async function loadClientArticleStatsFromDrive() {
+  if (!currentSessionToken) return;
+  try {
+    const result = await postService({ action: "getClientArticleStats", token: currentSessionToken });
+    clientArticleStats360 = result.clientArticleStats || { available: false, sourceFile: "", updatedAt: "", byClient: {} };
+    if (selectedClient360) selectClient360(selectedClient360);
+  } catch (error) {
+    // On garde la derniere version chargee pour ne pas bloquer le terrain.
   }
 }
 
@@ -1175,6 +1207,200 @@ function appendVisitSummaryToNote(action) {
   return currentText ? `${currentText}\n\n${summary}` : summary;
 }
 
+function getClientStats360(client) {
+  const stats = getDashboardStats(currentUser || {});
+  const list = Array.isArray(stats.allClientsStats) ? stats.allClientsStats : Array.isArray(stats.topClients) ? stats.topClients : [];
+  return list.find((item) => normalize(item.code || "") === normalize(client.code || "") || normalize(item.name || "") === normalize(client.name || ""));
+}
+
+function getClientArticleStats360(client) {
+  const byClient = clientArticleStats360?.byClient || {};
+  const codeKey = normalize(client.code || "");
+  if (codeKey && byClient[codeKey]) return byClient[codeKey];
+  const nameKey = normalize(client.name || "");
+  if (nameKey && byClient[nameKey]) return byClient[nameKey];
+  return null;
+}
+
+function getClientPrenet360(client) {
+  return getVisiblePrenetClients().find((item) =>
+    normalize(item.code || "") === normalize(client.code || "") ||
+    normalize(item.name || "") === normalize(client.name || "")
+  );
+}
+
+function getClient360Data(client) {
+  const notes = getVisibleVisitNotes().filter((note) => note.clientCode === client.code);
+  const quotes = getQuoteHistory().filter((item) => item.clientCode === client.code || normalize(item.clientName || "") === normalize(client.name || ""));
+  const prenet = getClientPrenet360(client);
+  return {
+    stats: getClientStats360(client),
+    articleStats: getClientArticleStats360(client),
+    notes,
+    quotes,
+    orders: [],
+    prenetEntries: prenet?.entries || [],
+  };
+}
+
+function renderClient360Empty(message = "Recherchez un client pour afficher sa vue complete.") {
+  selectedClient360 = null;
+  if (client360Status) client360Status.textContent = "Client non selectionne";
+  document.querySelector("#client360Grid")?.classList.add("is-empty");
+  if (client360Summary) client360Summary.innerHTML = `
+    <div class="client360-empty-state">
+      <strong>Rechercher un client</strong>
+      <span>${escapeHtml(message)}</span>
+      <small>La fiche regroupera ensuite le CA, les notes, les devis, les prix nets et les futurs top articles.</small>
+    </div>
+  `;
+  [client360Notes, client360Quotes, client360Prenets, client360Orders].forEach((container) => {
+    if (container) container.innerHTML = '<div class="dashboard-empty">Aucune donnee.</div>';
+  });
+  [client360NotesCount, client360QuotesCount, client360PrenetCount, client360OrdersCount].forEach((badge) => {
+    if (badge) badge.textContent = "0";
+  });
+}
+
+function renderClient360Suggestions(query) {
+  const cleanQuery = normalize(query.trim());
+  if (!client360Suggestions) return;
+  client360Suggestions.innerHTML = "";
+  if (!cleanQuery) {
+    renderClient360Empty();
+    client360Suggestions.classList.remove("is-open");
+    return;
+  }
+  const matches = visibleClients
+    .filter((client) => normalize([
+      client.code,
+      client.name,
+      client.billingCity,
+      client.billingZip,
+      client.deliveryCity,
+      client.deliveryZip,
+      client.sector,
+    ].join(" ")).includes(cleanQuery))
+    .slice(0, 12);
+  if (!matches.length) {
+    client360Suggestions.classList.remove("is-open");
+    return;
+  }
+  matches.forEach((client) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "suggestion";
+    button.innerHTML = `
+      <strong>${escapeHtml(client.name)}</strong>
+      <span>${escapeHtml(client.code)} - ${escapeHtml(client.billingZip)} ${escapeHtml(client.billingCity)} - ${escapeHtml(client.sector)}</span>
+    `;
+    button.addEventListener("click", () => selectClient360(client));
+    client360Suggestions.appendChild(button);
+  });
+  client360Suggestions.classList.add("is-open");
+}
+
+function renderClient360List(container, items, emptyText, renderer) {
+  if (!container) return;
+  container.innerHTML = items.length
+    ? items.map(renderer).join("")
+    : `<div class="dashboard-empty">${escapeHtml(emptyText)}</div>`;
+}
+
+function formatEvolutionPercent(value) {
+  if (value === null || value === undefined || !isFinite(Number(value))) return "--";
+  const percent = Number(value) * 100;
+  return `${percent >= 0 ? "+" : ""}${percent.toFixed(1).replace(".", ",")}%`;
+}
+
+function selectClient360(client) {
+  selectedClient360 = client;
+  if (client360Search) client360Search.value = client.name;
+  client360Suggestions?.classList.remove("is-open");
+  document.querySelector("#client360Grid")?.classList.remove("is-empty");
+  if (client360Status) client360Status.textContent = "Client selectionne";
+  const data = getClient360Data(client);
+  const articleSummary = data.articleStats?.summary || null;
+  const caLabel = articleSummary ? formatter.format(Number(articleSummary.ca2026) || 0) : data.stats ? formatter.format(Number(data.stats.revenue) || 0) : "--";
+  const caPreviousLabel = articleSummary ? formatter.format(Number(articleSummary.ca2025) || 0) : "--";
+  const evolutionLabel = articleSummary ? formatEvolutionPercent(articleSummary.evolutionPct) : "--";
+  const topArticles = Array.isArray(data.articleStats?.topArticles) ? data.articleStats.topArticles : [];
+  client360Summary.innerHTML = `
+    <article class="selected-client client360-identity">
+      <div>
+        <strong>${escapeHtml(client.name)}</strong>
+        <span>${escapeHtml(client.code)} - ${escapeHtml(client.sector || "")}</span>
+        <span>${escapeHtml(client.deliveryAddress || client.billingAddress || "")}</span>
+        <span>${escapeHtml(client.deliveryZip || client.billingZip || "")} ${escapeHtml(client.deliveryCity || client.billingCity || "")}</span>
+      </div>
+      <div class="client360-kpis">
+        <span><small>CA 2026</small><strong>${escapeHtml(caLabel)}</strong></span>
+        <span><small>CA N-1</small><strong>${escapeHtml(caPreviousLabel)}</strong></span>
+        <span><small>Evolution</small><strong>${escapeHtml(evolutionLabel)}</strong></span>
+        <span><small>Notes</small><strong>${data.notes.length}</strong></span>
+        <span><small>Devis</small><strong>${data.quotes.length}</strong></span>
+        <span><small>Prix nets</small><strong>${data.prenetEntries.length}</strong></span>
+      </div>
+    </article>
+  `;
+  client360NotesCount.textContent = String(data.notes.length);
+  client360QuotesCount.textContent = String(data.quotes.length);
+  client360PrenetCount.textContent = String(data.prenetEntries.length);
+  client360OrdersCount.textContent = String(topArticles.length);
+  renderClient360List(client360Notes, data.notes.slice(0, 8), "Aucune note pour ce client.", (note) => `
+    <button class="client360-row" type="button" data-client360-open="notes">
+      <strong>${escapeHtml(formatNoteDate(note.date))}</strong>
+      <span>${escapeHtml((note.text || "").slice(0, 180))}</span>
+    </button>
+  `);
+  renderClient360List(client360Quotes, data.quotes.slice(0, 8), "Aucune demande de devis pour ce client.", (quote) => `
+    <button class="client360-row" type="button" data-client360-open="quote">
+      <strong>${escapeHtml(quoteStatusLabel(quote.status))} - ${escapeHtml(quote.date || "")}</strong>
+      <span>${escapeHtml((quote.lines || []).map((line) => `${line.ref} x${line.qty}`).join(", ") || "Sans reference")}</span>
+    </button>
+  `);
+  renderClient360List(client360Prenets, data.prenetEntries.slice(0, 10), "Aucun prix net trouve pour ce client.", (entry) => `
+    <button class="client360-row" type="button" data-client360-open="prenet">
+      <strong>${escapeHtml(entry.ref || "")} ${Number(entry.price) ? `- ${escapeHtml(formatter.format(Number(entry.price) || 0))}` : ""}</strong>
+      <span>${escapeHtml(entry.designation || "")}</span>
+    </button>
+  `);
+  renderClient360List(client360Orders, topArticles, clientArticleStats360?.available ? "Aucun achat trouve pour ce client dans le fichier Drive." : "Aucun fichier stats client/article charge depuis Drive.", (article) => `
+    <button class="client360-row client360-article-row" type="button">
+      <strong>${escapeHtml(article.articleCode || "")} - ${escapeHtml(article.articleName || "")}</strong>
+      <span>CA 2026 : ${escapeHtml(formatter.format(Number(article.ca2026) || 0))} · N-1 : ${escapeHtml(formatter.format(Number(article.ca2025) || 0))} · Qte ${escapeHtml(formatNumber(article.quantity2026 || 0))} / ${escapeHtml(formatNumber(article.quantity2025 || 0))} · ${escapeHtml(formatEvolutionPercent(article.evolutionPct))}</span>
+    </button>
+  `);
+  recordActivity("Fiche client consultee", `${client.name} (${client.code})`);
+}
+
+function openClient360LinkedTab(target, orderId = "") {
+  if (!selectedClient360) return;
+  if (target === "notes") {
+    setActiveTab("notes");
+    selectNotesClient(selectedClient360);
+    return;
+  }
+  if (target === "quote") {
+    setActiveTab("quote");
+    selectQuoteClient(selectedClient360);
+    renderQuoteHistory();
+    return;
+  }
+  if (target === "prenet") {
+    const prenet = getClientPrenet360(selectedClient360);
+    setActiveTab("prenet");
+    if (prenet) selectPrenetClient(prenet);
+    return;
+  }
+  if (target === "order") {
+    setActiveTab("order");
+    if (orderId) activeHistoryOrderId = orderId;
+    renderOrderHistory();
+    requestAnimationFrame(() => document.querySelector(".order-history-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+}
+
 function buildGlobalSearchResults(query) {
   if (!currentUser) return [];
   const cleanQuery = normalize(query.trim());
@@ -1199,8 +1425,8 @@ function buildGlobalSearchResults(query) {
         title: client.name,
         meta: `${client.code} - ${client.deliveryZip || client.billingZip || ""} ${client.deliveryCity || client.billingCity || ""}`,
         action: () => {
-          setActiveTab("notes");
-          selectNotesClient(client);
+          setActiveTab("client360");
+          selectClient360(client);
         },
       });
     });
@@ -1399,6 +1625,7 @@ function arrangeTabsForUser(user) {
   }
   [
     homeTab,
+    client360Tab,
     orderTab,
     quoteTab,
     expensesTab,
@@ -1596,6 +1823,7 @@ function startDriveAutoRefresh() {
     if (document.hidden || !currentSessionToken || currentUser?.role === "admin") return;
     loadDashboardStatsFromDrive();
     loadBacklogItems(true);
+    loadClientArticleStatsFromDrive();
   }, driveAutoRefreshMs);
 }
 
@@ -3112,8 +3340,17 @@ function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function getNoteActionLabel(note) {
+  const text = normalize([note.text || "", note.reminderText || ""].join(" "));
+  if (text.includes("devis a faire")) return "Devis a faire";
+  if (text.includes("commande probable")) return "Commande probable";
+  if (text.includes("a relancer") || text.includes("relance client") || text.includes("relancer le client")) return "A relancer";
+  return "";
+}
+
 function reminderStatus(note) {
-  if (!note.reminderDate || note.reminderDone) return "none";
+  if (note.reminderDone) return "none";
+  if (!note.reminderDate) return getNoteActionLabel(note) ? "action" : "none";
   const today = getTodayKey();
   if (note.reminderDate < today) return "late";
   if (note.reminderDate === today) return "today";
@@ -3124,10 +3361,10 @@ function getVisibleReminders(includeUpcoming = false) {
   if (!currentUser) return [];
   const allowedCodes = new Set(visibleClients.map((client) => client.code));
   return getStoredNotes()
-    .filter((note) => note.userId === currentUser.id && allowedCodes.has(note.clientCode) && note.reminderDate && !note.reminderDone)
-    .filter((note) => includeUpcoming || reminderStatus(note) === "late" || reminderStatus(note) === "today")
+    .filter((note) => note.userId === currentUser.id && allowedCodes.has(note.clientCode) && !note.reminderDone && (note.reminderDate || getNoteActionLabel(note)))
+    .filter((note) => includeUpcoming || reminderStatus(note) === "late" || reminderStatus(note) === "today" || reminderStatus(note) === "action")
     .sort((a, b) => {
-      const dateCompare = a.reminderDate.localeCompare(b.reminderDate);
+      const dateCompare = String(a.reminderDate || a.date || "").localeCompare(String(b.reminderDate || b.date || ""));
       if (dateCompare !== 0) return dateCompare;
       return a.clientName.localeCompare(b.clientName);
     });
@@ -4148,6 +4385,7 @@ function openWazeNextClient() {
 
 function setActiveTab(tabName) {
   const showHome = tabName === "home";
+  const showClient360 = tabName === "client360";
   const showOrder = tabName === "order";
   const showQuote = tabName === "quote";
   const showExpenses = tabName === "expenses";
@@ -4159,6 +4397,7 @@ function setActiveTab(tabName) {
   const showPromotion = tabName === "promotion";
   const showAdmin = tabName === "admin";
   homeTab.classList.toggle("is-active", showHome);
+  client360Tab.classList.toggle("is-active", showClient360);
   orderTab.classList.toggle("is-active", showOrder);
   quoteTab.classList.toggle("is-active", showQuote);
   expensesTab.classList.toggle("is-active", showExpenses);
@@ -4170,6 +4409,7 @@ function setActiveTab(tabName) {
   promotionTab.classList.toggle("is-active", showPromotion);
   adminTab.classList.toggle("is-active", showAdmin);
   homeView.classList.toggle("is-hidden", !showHome);
+  client360View.classList.toggle("is-hidden", !showClient360);
   orderView.classList.toggle("is-hidden", !showOrder);
   quoteView.classList.toggle("is-hidden", !showQuote);
   expensesView.classList.toggle("is-hidden", !showExpenses);
@@ -4184,6 +4424,13 @@ function setActiveTab(tabName) {
   if (!showAdmin && currentUser?.role !== "admin") {
     const names = { home: "Accueil", order: "Saisie commande", quote: "Demande de devis", expenses: "Frais", notes: "Prise de notes", tour: "Tournées", backlog: "Reliquats & reprise", prenet: "Prix nets", tarif: "Tarifs & Documents", promotion: "Promotions" };
     recordActivity("Onglet consulté", names[tabName] || tabName);
+  }
+
+  if (showClient360) {
+    loadClientArticleStatsFromDrive();
+    if (selectedClient360) selectClient360(selectedClient360);
+    else renderClient360Empty();
+    requestAnimationFrame(() => client360Search?.focus());
   }
 
   if (showOrder) {
@@ -4563,10 +4810,19 @@ function refreshNotesHistoryFromCurrentMode() {
   }
 }
 
+function updateOfflineStatus() {
+  if (!offlineStatus) return;
+  const online = navigator.onLine !== false;
+  offlineStatus.textContent = online ? "En ligne" : "Hors ligne";
+  offlineStatus.classList.toggle("is-online", online);
+  offlineStatus.classList.toggle("is-offline", !online);
+}
+
 clientSearch.addEventListener("input", (event) => renderClientSuggestions(event.target.value));
 document.querySelector("#addLine").addEventListener("click", addLine);
 document.querySelector("#generateOrderFiles").addEventListener("click", generateOrderFiles);
 homeTab.addEventListener("click", () => setActiveTab("home"));
+client360Tab.addEventListener("click", () => setActiveTab("client360"));
 orderTab.addEventListener("click", () => setActiveTab("order"));
 quoteTab.addEventListener("click", () => setActiveTab("quote"));
 expensesTab.addEventListener("click", () => setActiveTab("expenses"));
@@ -4600,6 +4856,12 @@ backlogBody.addEventListener("click", (event) => {
   renderBacklog();
 });
 clearHistoryOrders.addEventListener("click", clearCurrentUserOrders);
+client360Search?.addEventListener("input", (event) => renderClient360Suggestions(event.target.value));
+document.querySelector("#client360Grid")?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-client360-open]");
+  if (!button) return;
+  openClient360LinkedTab(button.dataset.client360Open, button.dataset.orderId || "");
+});
 quoteClientSearch.addEventListener("input", (event) => renderQuoteClientSuggestions(event.target.value));
 addQuoteLine.addEventListener("click", addQuoteLineItem);
 sendQuoteRequest.addEventListener("click", sendQuoteRequestDraft);
@@ -4816,9 +5078,15 @@ document.addEventListener("click", (event) => {
   if (!event.target.closest(".global-search")) {
     globalSearchResults?.classList.add("is-hidden");
   }
+  if (!event.target.closest(".client360-search")) {
+    client360Suggestions?.classList.remove("is-open");
+  }
 });
 
 setupVoiceNotes();
+updateOfflineStatus();
+window.addEventListener("online", updateOfflineStatus);
+window.addEventListener("offline", updateOfflineStatus);
 setDisplayMode(localStorage.getItem(displayModeStorageKey) === "tablet" ? "tablet" : "pc");
 setVisitActionVisibility();
 restoreSession();

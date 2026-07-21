@@ -76,6 +76,142 @@
 .quote-history-actions button:hover { border-color: var(--red); color: var(--red); }
 .quote-history-actions .quote-history-delete { width: 36px; height: 36px; padding: 0; border-radius: 50%; color: var(--red); background: #fff1f2; border-color: #fecdd3; font-size: 20px; }
 
+.offline-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 950;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  background: #f0fdf4;
+}
+.offline-status.is-offline {
+  border-color: #fed7aa;
+  color: #9a3412;
+  background: #fff7ed;
+}
+
+.client360-panel { display: grid; gap: 18px; overflow: hidden; padding: 24px; }
+.client360-panel > .panel-heading {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.client360-search-card {
+  display: grid;
+  grid-template-columns: minmax(220px, .28fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: end;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fff 0%, #fff7f7 100%);
+}
+.client360-search-card h3 {
+  margin: 4px 0 0;
+  font-size: 22px;
+}
+.client360-search { position: relative; display: grid; gap: 8px; min-width: 0; }
+.client360-search label { color: var(--muted); font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+.client360-search input {
+  min-height: 58px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 0 18px;
+  font-size: 18px;
+  font-weight: 800;
+}
+.client360-search input:focus { outline: 3px solid rgba(227, 6, 19, .12); border-color: var(--red); }
+.client360-search .suggestions {
+  left: 0;
+  right: 0;
+  width: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.client360-summary { display: grid; gap: 12px; min-width: 0; }
+.client360-empty-state {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 190px;
+  padding: 34px;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed #d8dee8;
+  border-radius: 20px;
+  background: #fafbfc;
+}
+.client360-empty-state strong {
+  color: var(--dark);
+  font-size: 24px;
+}
+.client360-empty-state span {
+  font-weight: 850;
+}
+.client360-empty-state small {
+  max-width: 620px;
+  line-height: 1.45;
+}
+.client360-identity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, .65fr);
+  gap: 18px;
+  align-items: stretch;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.client360-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(110px, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+.client360-kpis span {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fafbfc;
+  min-width: 0;
+}
+.client360-kpis small { color: var(--muted); font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: .04em; }
+.client360-kpis strong { font-size: 20px; color: var(--dark); overflow-wrap: anywhere; }
+.client360-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  min-width: 0;
+}
+.client360-grid.is-empty {
+  display: none;
+}
+.client360-card { padding: 20px; min-width: 0; overflow: hidden; }
+.client360-card h3 { margin: 4px 0 0; font-size: 22px; }
+.client360-list { display: grid; gap: 10px; min-width: 0; }
+.client360-row {
+  width: 100%;
+  box-sizing: border-box;
+  display: grid;
+  gap: 5px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px;
+  cursor: pointer;
+}
+.client360-row:hover { border-color: var(--red); box-shadow: 0 10px 24px rgba(227, 6, 19, .08); }
+.client360-row strong { color: var(--dark); font-size: 15px; overflow-wrap: anywhere; }
+.client360-row span { color: var(--muted); font-weight: 750; line-height: 1.35; overflow-wrap: anywhere; }
+
 .expenses-panel { padding: 28px; display: grid; gap: 18px; }
 .expenses-rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .expenses-rules article { display: grid; gap: 5px; padding: 14px 16px; border: 1px solid #e1e5eb; border-radius: 16px; background: #fff7f7; }
@@ -3592,6 +3728,42 @@ h2 {
 .tablet-mode .backlog-table-wrap,
 .tablet-mode .prenet-table-wrap {
   overflow: visible !important;
+}
+
+.tablet-mode .offline-status {
+  width: 100%;
+  min-height: 44px;
+  font-size: 14px;
+}
+.tablet-mode .client360-panel {
+  padding: 16px;
+  gap: 16px;
+}
+.tablet-mode .client360-search-card {
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 16px;
+}
+.tablet-mode .client360-search input {
+  min-height: 64px;
+  font-size: 20px;
+}
+.tablet-mode .client360-identity,
+.tablet-mode .client360-grid {
+  grid-template-columns: 1fr;
+}
+.tablet-mode .client360-kpis {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.tablet-mode .client360-card {
+  padding: 16px;
+}
+.tablet-mode .client360-row {
+  min-height: 72px;
+  padding: 16px;
+}
+.tablet-mode .client360-row strong {
+  font-size: 17px;
 }
 
 .tablet-mode .order-table thead,
